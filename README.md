@@ -4,7 +4,7 @@
 
 <h1 align="center">Guanlan · An Obsidian workbench for following and reading sources</h1>
 
-<p align="center">Follow the sources you choose, make time to read, and keep what is worth remembering.</p>
+<p align="center">Bring the updates you follow, your reading picks, and your notes together in Obsidian. Work with your AI agent to turn what you learn into a personal knowledge base.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-v0.22.5-31595b" alt="Version: v0.22.5">
@@ -13,26 +13,26 @@
 </p>
 
 <p align="center">
-  <a href="README.zh-CN.md">简体中文</a> · <a href="#quick-start">Quick start</a> · <a href="#complete-workflow">Complete workflow</a> · <a href="#interface-guide">Interface guide</a> · <a href="#adapt-it-with-your-own-agent">Adapt it with your agent</a>
+  <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="#quick-start">Quick start</a> · <a href="#complete-workflow">Complete workflow</a> · <a href="#interface-guide">Interface guide</a> · <a href="#adapt-it-with-your-own-agent">Adapt it with your agent</a>
 </p>
 
 ---
 
-Guanlan brings updates from WeChat Official Accounts, YouTube, Bilibili, and RSS into Obsidian. I open one workbench to see what the people I follow have published, pick a few pieces to read, and find things I saved before. If a source is worth turning into a knowledge note, I can hand the original to my agent for discussion or synthesis.
+Guanlan is an Obsidian plugin that brings together updates from WeChat Official Accounts, YouTube, Bilibili, and other RSS feeds. Open one workbench to see what the creators you follow have published, pick a few things to read, or find something you saved earlier. If a piece is worth keeping, you can give the original to your AI agent to discuss or turn into a knowledge note.
 
 ## Why I built it
 
-Finding things often took more effort than reading them. I opened WeChat to check an author's latest posts, switched to a video platform to find a different creator, then sent useful links to myself or pasted them into Obsidian. Every switch meant finding my way back in, remembering where I had left off, and keeping track of what I had come to find.
+I noticed that finding things often took more effort than reading them. I'd open WeChat to check a writer's latest posts, then search a video platform for another creator. Somewhere along the way, I'd get pulled into watching clips when I'd sat down to learn something. If I found a link worth returning to, I'd still have to send it to myself or paste it into Obsidian. Every switch meant finding the right place again, remembering where I'd left off, and keeping track of what I'd come for.
 
-**Attention is a scarce resource.** I'd open an app to find one video and walk into a feed of clips, trending topics, and autoplay. By the time I remembered why I was there, I had less time for the article or long video I meant to spend it on. That shaped the workbench in five ways.
+**Attention is scarce and valuable.** I'd open an app for one video, and the home screen already had a stream of shorts, trending topics, and autoplay lined up. By the time I remembered why I was there, I'd spent much of the time and energy I'd set aside for the article or long video. Guanlan starts with that tradeoff.
 
 **01 / Check and read updates in one place**
 
-I wanted to keep up with specific authors. Most of the work was finding out whether they had posted at all. Updates puts collected entries on one page, grouped by author and actual publication date, with each author's latest entry shown first. Video cards show the title, creator, and link, so I can decide what to watch before opening the platform. The local service can collect while the computer is on, and Obsidian can pull in the saved material later.
+I wanted to keep up with a handful of creators. The tedious part was checking each one every day. Updates brings collected entries together by author and actual publication date, with the latest item from each source shown first. Videos show their title, creator, and link, so you can decide whether to open the platform after looking through the page. While your computer is on and the service is running, it can collect in the background. The saved items sync when you open Obsidian with auto-sync enabled.
 
 **02 / Give a short reading session an endpoint**
 
-Sometimes I know I have twenty minutes before I open the workbench. Hundreds of unread entries won't help me spend them. Today's Reading offers a shortlist within my budget, and I can still browse the full set of collected updates. I also want to find writers outside my subscriptions, so Discover has its own page. It can bring back a few picks, explain why each is worth opening, and show the evidence it used. On a quiet day, there can be fewer picks. I can finish the list and go do something else.
+Before I open the workbench, I often know I have twenty minutes. Hundreds of unread entries won't help me spend them. Today's Reading picks a few items for the time and attention I have that day. I can always go back to Updates for the full list. Discover has its own page for finding new writers and material beyond my subscriptions. It can offer a few picks a day, explain why each is worth opening, and show what the recommendation is based on. If little fits, it offers less. I can read with a question in mind and close the workbench when I've had enough.
 
 **03 / Pick up where I left off**
 
@@ -46,7 +46,7 @@ A blank list could mean an author published nothing. It could also mean the feed
 
 A book, a saved article, and a recommendation blurb give me different evidence to work with. I want the original capture, my annotations, and what the AI wrote to remain traceable. Guanlan saves originals, reading note versions, and short guides separately. When I want a knowledge note, I choose a specific version and send it to Claudian for discussion or direct synthesis. Knowledge Handoff shows progress against receipts and actual files, so I can find out where a note came from later.
 
-These choices grew out of my routine. You can start with one RSS feed and one reading folder, or bring your own sources, categories, budget, interests, model, and agent workflow.
+These choices grew out of my own reading habits. Start with one RSS feed and one reading folder if that's all you need. Tell your agent what you'd like to change, from sources and categories to your reading budget, interests, model, or knowledge workflow.
 
 ## Complete workflow
 
@@ -156,23 +156,25 @@ For a background service after Windows login, see [Windows Task Scheduler setup]
 
 ### WeChat Official Accounts
 
-I wanted to follow other people's accounts. Pasting a link worked for saving an article, but I still needed a way to find out what each author had published. The WeChat Official Accounts platform exposes tools for operators to manage their own accounts. We did not find a general public subscription interface for following arbitrary accounts.
+Pasting an article link works for a one-off import. For automatic collection, I needed a source that would keep returning new posts. The public tools for WeChat Official Accounts are for operators managing their own accounts. I didn't find a public API for subscribing to any account. By October 2026, the batch article listing route I'd tried was no longer working in my setup, and several open source tools that relied on that approach were also affected.
 
-We tried self-hosted **WeRSS**. Five accounts could be registered, but the list request returned `200013` and the test collected zero article bodies automatically. Backoff reduced repeated requests. That test documents what happened in this project and leaves the exact upstream change and date unconfirmed. Public-link import remained useful when we already had an article URL. [WeRSS test record](docs/werss-runtime.md)
+I tried self-hosting **WeRSS**. I could register all five accounts in the test, but listing requests returned `200013` and the test collected no article bodies automatically. Backoff reduced repeated requests. That test alone can't tell us precisely what WeChat changed, when it changed, or how every other deployment behaves. Importing a public article still worked when I already had its URL. [WeRSS test record](docs/werss-runtime.md)
+
+I also looked into how a handful of services like Quyue collect posts. The patterns I identified included the Official Accounts backend's `appmsgpublish`, short-lived WeChat client credentials for `profile_ext/getmsg` (about 25 minutes in my notes), hooks for posts sent from live accounts, and server-side collection with account and proxy pools. In my isolated test, `searchbiz` worked, but `appmsgpublish` still returned `200013` on a single request after a 30-minute pause. That pointed to account access in my setup, though it didn't establish the cause for everyone. Among the local alternatives I found, tools such as mpider used a Frida hook into an existing desktop WeChat session instead. The build I reviewed kept credentials on the machine, but depended on WeChat 4.1.15.56 and carried a risk of account suspension. I didn't find a self-hosted route I wanted to maintain, so I chose a hosted service and kept a paid API as an alternative. [Original research notes in Chinese](README.zh-CN.md#微信公众号)
 
 | Route | How to use it |
 | --- | --- |
 | **Quyue (取阅), tested in this project** | Subscribe to an account at Quyue. On a plan that supports full text, enable **RSS 全文输出** and copy the **individual account's RSS URL** into **Add source**. Group feeds may offer summaries. The maintainer reported **CNY 29/month for up to 20 accounts** on November 15, 2026. Check the provider's checkout before purchasing. Treat private feed URLs as credentials. [Quyue](https://feed.zoro.build/) · [Project test record](docs/acceptance-v0.4.0-2026-10-10.md) |
-| **Dajiala (极致了), a paid API we researched** | Get your own key from the provider. Use an account identifier with the history endpoint (`post_history`), then query details as needed with the article URL (`article_detail`). To use it with Guanlan, build a small feed adapter or add a collector on the service side. Retain the article URL, publication date, and original response. The provider was researched for this project and would need a new integration and live validation here. [Provider's workflow](https://www.jzl.com/news/760) · [Article details API](https://apifox.com/apidoc/shared/410674f9-f451-4b4f-957a-5f54f243bc83/api-199752498) |
+| **Dajiala (极致了), a paid API alternative** | Get your own key from the provider. Use an account identifier with the history endpoint (`post_history`), then query details as needed with the article URL (`article_detail`). To use it with Guanlan, build a small feed adapter or add a collector on the service side. Retain the article URL, publication date, and original response. The repository doesn't include a Dajiala collector, and I haven't run a paid collection test with it. [Provider's workflow](https://www.jzl.com/news/760) · [Article details API](https://apifox.com/apidoc/shared/410674f9-f451-4b4f-957a-5f54f243bc83/api-199752498) |
 | **An existing feed or a single article** | Use **Add source** for a feed you already have. For a one-off save, use **Library → Add material → Add link**. |
 
-**RSSAnt (蚁阅)** is a separate RSS reader. The subscription and purchase above were for **Quyue**. [RSSAnt project](https://github.com/anyant/rssant)
+The feed supplies candidate articles. When the original page fails the account, date, or text checks, the source shows an error. A public video or a preview of a paid article is saved with the coverage actually obtained. If you renew an expired Quyue subscription and still see failures, use **Check now** under subscription management. The older failures stay in the history. Use the latest result to see whether collection has recovered. [Collection and catch-up](docs/collection-setup.md)
 
-The feed supplies candidate articles. When the original page fails the account, date, or text checks, the source shows an error. A public preview of a paid article is saved with that coverage. If you renew an expired Quyue subscription and still see failures, use **Check now** under subscription management to run an explicit check. Read the new result alongside the retained failure history. [Collection and catch-up](docs/collection-setup.md)
+If you've found an open source option that runs locally, I'd like to hear about it.
 
 ### YouTube
 
-I wanted to see a channel's new videos with their actual publication dates. The feed and public pages sometimes failed, so Guanlan now prefers **YouTube Data API v3** and keeps two fallbacks. It uses `channels.list` to find the channel's uploads playlist and `playlistItems.list` to read uploads, checking the channel and video identities before saving.
+I wanted to see a channel's new videos with their actual publication dates. Channel feeds sometimes failed and public pages had their own limits, so my first choice now is the official **YouTube Data API v3**, with two fallbacks. The service uses `channels.list` to find the channel's uploads playlist and `playlistItems.list` to read it. It checks the channel and video IDs and saves each video under its actual publication date.
 
 1. Add a YouTube channel.
 2. Enable YouTube Data API v3 in Google Cloud. Create an API key and restrict it to that API.
@@ -292,13 +294,13 @@ Edits are a draft until you click **保存配置** (Save settings). Set categori
 
 ## Adapt it with your own agent
 
-For installation, give the agent the plugin ZIP, these READMEs, and a description of your needs. For code changes, also give it the **source repository**. The ZIP contains compiled JavaScript. The repository has the modules, contracts, tests, and build entry points needed to change it.
+If all you want is to install the plugin, give your own agent the plugin ZIP, the README, and a description of what you need. To change how it works, give it the **source repository** too. The ZIP contains compiled JavaScript. The repository includes the modules, types, tests, workflow diagrams, and build scripts.
 
 Start with your reading habits. For example, “I follow ten legal blogs and two video channels. I read for 20 minutes a day. Group sources under courts, corporate compliance, and technology. Keep my notes local and leave X and Wiki writing off.” Much of that can be handled in settings.
 
 You can give your agent this prompt:
 
-> Read README and AGENTS.md first. Set up Guanlan in a test vault. Connect one test feed and verify a successful check, sync, and read-back of the note and captured original. Configure my sources, reading directory, daily budget, and discovery interests. For any behavior that needs a code change, explain where it belongs and how you will verify it. Test duplicated imports, timeouts, identity mismatches, and retries for new providers. I will enter credentials locally. Deliver the settings, a summary of changes, verification results, and an installable plugin package.
+> Read the README and any repository instructions first. Set up Guanlan in a test vault. Connect one test feed and verify that the plugin can check, sync, and open both the saved note and the captured original. Configure my sources, reading directory, daily budget, and discovery interests. For any behavior that needs a code change, explain where it belongs and how you will verify it. Test duplicate imports, timeouts, identity mismatches, and recovery for new providers. I will enter credentials locally. Deliver the settings, a summary of changes, verification results, and an installable plugin package.
 
 | To change | Start here |
 | --- | --- |

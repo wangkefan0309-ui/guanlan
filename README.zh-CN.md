@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="#快速上手">快速安装</a> · <a href="#完整工作流">完整工作流</a> · <a href="#界面使用指南">界面指南</a> · <a href="#交给你的-agent-改造">交给你的 Agent</a>
+  <a href="README.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="#快速上手">快速安装</a> · <a href="#完整工作流">完整工作流</a> · <a href="#界面使用指南">界面指南</a> · <a href="#交给你的-agent-改造">交给你的 Agent</a>
 </p>
 
 ---
