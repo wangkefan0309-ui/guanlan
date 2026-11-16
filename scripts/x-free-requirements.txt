@@ -1,0 +1,2 @@
+# Verified upstream commit; do not silently track main.
+twscrape[curl] @ https://github.com/vladkens/twscrape/archive/568844df82af956df5970bcf7ff84dd5ba729eb0.zip

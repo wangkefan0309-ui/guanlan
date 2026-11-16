@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-labelledby="title">
+  <title id="title">Guanlan radar</title>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#31595b"/>
+      <stop offset="1" stop-color="#17383e"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="96" height="96" rx="24" fill="url(#field)" stroke="#527d80" stroke-width="2"/>
+  <g fill="none" stroke="#9de2d3" stroke-width="6.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(9 10) scale(.82)">
+    <path d="M50 14a36 36 0 1 0 36 36"/>
+    <path d="M50 30a20 20 0 1 0 20 20"/>
+    <path d="M54 46 78 22"/>
+    <circle cx="50" cy="50" r="5" fill="#9de2d3" stroke="none"/>
+    <circle cx="82" cy="18" r="5" fill="#ffe0a6" stroke="none"/>
+  </g>
+</svg>

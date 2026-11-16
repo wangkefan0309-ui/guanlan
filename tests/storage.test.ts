@@ -1,0 +1,11 @@
+import{describe,it,expect}from'vitest';
+import{readingRoot}from'../src/core/model';
+import{preflightStorage,storageRoot}from'../src/core/storage';
+import{restoreSettings,settingsDefaults}from'../src/core/settings';
+describe('存储目录审查',()=>{
+ it('绝对路径、UNC、盘符、穿越、隐藏目录和Windows设备名在规范化之前拒绝',()=>{for(const path of ['/tmp/test','C:\\Users\\test','C：\\Users\\test','\\\\server\\share','foo//bar','foo/../bar','.obsidian/data','08_LLM Wiki/RAW','01_帆OS/Rocker · 摇杆','foo/CON.md','foo /bar','foo/ bar'])expect(()=>readingRoot(path),path).toThrow();});
+ it('反斜杠、NFC和不换行空格形成同一个规范路径，生成文件路径不得隐式更名',()=>{expect(readingRoot(' 阅读\\资料/ ')).toBe('阅读/资料');expect(readingRoot('Cafe\u0301')).toBe('Café');expect(readingRoot('我的\u00a0阅读')).toBe('我的 阅读');});
+ it('排除自定义配置目录及其父目录，也排除已使用阅读库的父子目录',()=>{for(const path of ['系统/配置','系统/配置/plugins','系统'])expect(()=>storageRoot(path,'系统/配置',['旧库'])).toThrow();expect(()=>storageRoot('资料/新库','custom-config',['资料'])).toThrow();expect(()=>storageRoot('资料','custom-config',['资料/旧库'])).toThrow();expect(storageRoot('资料/旧库','custom-config',['资料/旧库'])).toBe('资料/旧库');});
+ it('任一父目录或固定产物同名冲突都在写入前拒绝，校验只查路径不创建',async()=>{const paths=new Map<string,'file'|'folder'>([['新目录/已有文件','file']]);let checks=0;const kind=async(p:string)=>{checks++;return paths.get(p)??null;};await expect(preflightStorage('新目录/已有文件/子目录','.obsidian',[],kind)).rejects.toThrow('同名文件');expect(checks).toBeGreaterThan(0);paths.clear();paths.set('新目录/原件','file');await expect(preflightStorage('新目录','.obsidian',[],kind)).rejects.toThrow('同名文件');paths.clear();paths.set('新目录/_工作台/state.json','folder');await expect(preflightStorage('新目录','.obsidian',[],kind)).rejects.toThrow('同名文件夹');});
+ it('旧目录设置损坏时保留连接、暂停全部自动任务，不自动使用回退目录写入',()=>{const original={...settingsDefaults,directory:'../outside',serviceToken:'original-token',guideKey:'original-key',autoSync:true,autoExplore:true,autoDailyAi:true};const restored=restoreSettings(original);expect(restored.repaired).toBe(true);expect(restored.settings.serviceToken).toBe(original.serviceToken);expect(restored.settings.guideKey).toBe(original.guideKey);expect(restored.settings.autoSync).toBe(false);expect(restored.settings.autoExplore).toBe(false);expect(restored.settings.autoDailyAi).toBe(false);expect(original.directory).toBe('../outside');});
+});

@@ -1,0 +1,72 @@
+{
+  "sources": [
+    {
+      "registry_id": "WX-001",
+      "display_name": "记忆承载",
+      "biz": "MzU0MjYwNDU2Mw==",
+      "verification_status": "example_inactive"
+    },
+    {
+      "registry_id": "WX-002",
+      "display_name": "请辩",
+      "biz": "MzI0MDg5ODA2NQ==",
+      "verification_status": "example_inactive"
+    },
+    {
+      "registry_id": "WX-003",
+      "display_name": "dontbesilent",
+      "biz": "MzA5MDg2MzQ5NQ==",
+      "verification_status": "example_inactive"
+    },
+    {
+      "registry_id": "WX-004",
+      "display_name": "数字生命卡兹克",
+      "biz": "MzIyMzA5NjEyMA==",
+      "verification_status": "example_inactive"
+    },
+    {
+      "biz": "",
+      "registry_id": "WX-006",
+      "display_name": "记忆承载3",
+      "verification_status": "example_inactive"
+    },
+    {
+      "biz": "",
+      "registry_id": "WX-007",
+      "display_name": "量子位",
+      "verification_status": "example_inactive"
+    },
+    {
+      "biz": "",
+      "registry_id": "WX-008",
+      "display_name": "每日经济新闻",
+      "verification_status": "example_inactive"
+    },
+    {
+      "biz": "",
+      "registry_id": "WX-009",
+      "display_name": "HarryHan 邓云瀚",
+      "verification_status": "example_inactive"
+    },
+    {
+      "biz": "",
+      "registry_id": "WX-010",
+      "display_name": "赛博禅心",
+      "verification_status": "example_inactive"
+    },
+    {
+      "biz": "",
+      "registry_id": "WX-011",
+      "display_name": "超律志",
+      "verification_status": "example_inactive"
+    }
+  ],
+  "retired_sources": [
+    {
+      "registry_id": "WX-005",
+      "display_name": "新智元",
+      "biz": "MzI3MTA0MTk1MA==",
+      "verification_status": "example_inactive"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "obsidian-source-workbench",
+  "version": "0.22.5",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev:server": "tsx src/server/main.ts",
+    "package": "node scripts/package.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run build:server",
+    "rsshub:setup": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/rsshub.ps1 setup",
+    "rsshub:start": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/rsshub.ps1 start",
+    "rsshub:status": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/rsshub.ps1 status",
+    "rsshub:stop": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/rsshub.ps1 stop",
+    "build:server": "node scripts/build-server.mjs",
+    "x:setup": "py -3 -m venv .local/x-free/venv && .local/x-free/venv/Scripts/python.exe -m pip install -r scripts/x-free-requirements.txt",
+    "x:login": "node scripts/x-free-login.mjs"
+  },
+  "dependencies": {
+    "@mozilla/readability": "0.6.0",
+    "fast-xml-parser": "5.11.1",
+    "https-proxy-agent": "7.0.6",
+    "linkedom": "0.18.13",
+    "pdfjs-dist": "6.4.299",
+    "playwright-core": "1.64.0",
+    "turndown": "7.2.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "^22.0.0",
+    "@types/turndown": "5.0.6",
+    "esbuild": "0.28.2",
+    "obsidian": "1.14.4",
+    "tsx": "^4.20.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

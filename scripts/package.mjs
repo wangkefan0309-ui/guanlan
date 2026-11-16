@@ -1,0 +1,10 @@
+import { execFileSync } from 'node:child_process';
+import { mkdir, copyFile, readFile } from 'node:fs/promises';
+await import('./build.mjs');
+await mkdir('release/source-workbench', { recursive: true });
+for (const name of ['main.js','manifest.json','styles.css','AIHOT-MIT.txt']) await copyFile(`dist/plugin/${name}`, `release/source-workbench/${name}`);
+const {version}=JSON.parse(await readFile('manifest.json','utf8'));
+if(!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('无效插件版本');
+const archive=`release/source-workbench-${version}.zip`;
+execFileSync('powershell.exe', ['-NoProfile','-Command', `Compress-Archive -LiteralPath 'release/source-workbench' -DestinationPath '${archive}' -Force`], { stdio: 'inherit' });
+console.log(`安装包：${archive}`);

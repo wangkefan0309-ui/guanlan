@@ -1,0 +1,36 @@
+{
+  "sources": [
+    {
+      "registry_id": "YT-001",
+      "display_name": "老周横眉",
+      "channel_id": "UCFDMMIHbtRdrVhHlGXVzApA",
+      "collection_status": "example_inactive"
+    },
+    {
+      "registry_id": "YT-002",
+      "display_name": "小Lin说",
+      "channel_id": "UCilwQlk62k1z7aUEZPOB6yw",
+      "collection_status": "example_inactive"
+    },
+    {
+      "registry_id": "YT-003",
+      "display_name": "硅谷101",
+      "channel_id": "UCKV2yWPB3wn0RTZh3cTD8YA",
+      "collection_status": "example_inactive"
+    },
+    {
+      "registry_id": "YT-004",
+      "display_name": "3Blue1Brown",
+      "channel_id": "UCYO_jab_esuFRV4b17AJtAw",
+      "collection_status": "example_inactive"
+    }
+  ],
+  "bilibili_sources": [
+    {
+      "registry_id": "BL-001",
+      "display_name": "影视飓风",
+      "uid": "946974",
+      "collection_status": "example_inactive"
+    }
+  ]
+}
