@@ -1,0 +1,45 @@
+name: Build community release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check the release tag
+        run: |
+          $version = (Get-Content -Raw -LiteralPath 'manifest.json' | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -cne $version) {
+            throw 'The Git tag must match the plugin manifest version.'
+          }
+      - run: npm ci
+      - run: npm run verify
+      - run: node scripts/stage-community.mjs
+      - name: Attest the community files
+        uses: actions/attest@v4
+        with:
+          subject-path: release/community/${{ github.ref_name }}/*
+      - name: Save the attested release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: guanlan-community-${{ github.ref_name }}
+          path: release/community/${{ github.ref_name }}/
+          if-no-files-found: error

@@ -7,7 +7,7 @@
 <p align="center">汇百川，见新知。把关注的更新、选读和知识笔记汇聚在一起，并通过与 AI Agent 的协作进行知识沉淀，让打造你的 Obsidian 个人知识库更加高效。</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.6-31595b" alt="版本: v0.22.6">
+  <img src="https://img.shields.io/badge/version-v0.22.7-31595b" alt="版本: v0.22.7">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: 桌面版 ≥ 1.13">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: ≥ 22.13">
 </p>
@@ -135,16 +135,16 @@
 
 需要 Obsidian **桌面版 1.13.0 或更新版本**。从源码构建和运行后台需要 **Node.js 22.13 或更高版本**。下面以 Windows 为例，后台常驻、RSSHub 和免费 X 的辅助脚本以 Windows 为已验证环境。
 
-1. 如果你已有插件 ZIP，解压出 `source-workbench` 文件夹。如果你拿到的是源码，在项目根目录执行：
+1. 手动安装时，从 GitHub Release 分别下载 `manifest.json`、`main.js` 和 `styles.css`。从源码构建时，在项目根目录执行下面的命令。
 
    ```powershell
    npm ci
    npm run build
    ```
 
-   将 ZIP 中的 `source-workbench` 文件夹放进 Vault 的 `.obsidian/plugins/`。从源码安装时，在这个位置创建 `source-workbench`，把 `dist/plugin/` 的三个文件复制进去：`manifest.json`、`main.js`、`styles.css`。在 Obsidian 的第三方插件页面启用 **Guanlan**。
+   将下载的三个文件或 `dist/plugin/` 中的对应文件复制到 Vault 的 `.obsidian/plugins/source-workbench/`。在 Obsidian 的第三方插件页面启用 **Guanlan**。
 
-2. 需要抓取网页、订阅、公开字幕或使用外部探索渠道时，在项目目录运行后台。插件 ZIP 内只有插件程序和第三方版权说明，后台从源码单独启动。没有执行过 `npm ci` 的话先执行一次。
+2. 需要抓取网页、订阅、公开字幕或使用外部探索渠道时，从源码启动材料服务。没有执行过 `npm ci` 的话先执行一次。
 
    ```powershell
    npm run dev:server
@@ -302,7 +302,7 @@ RSS 提供候选文章。微信原页账号、日期或正文核验不过的时�
 
 ## 交给你的 Agent 改造
 
-如果只想安装该插件，把插件 ZIP、这两份 README 和你的需求交给你自己的 Agent 就够了。要修改功能的话，建议同时给它**仓库源码**。ZIP 里是构建后的 JavaScript，源码里才有模块、类型、测试、流程图和构建入口。
+如果只想安装该插件，把 Release 的三个安装文件、README 和你的需求交给自己的 Agent。要修改功能，再给它**仓库源码**，里面有模块、类型、测试、流程图和构建入口。
 
 先说明一下你的阅读场景。比如「我只追十个法律博客和两个视频频道。每天 20 分钟，按法院、公司合规和技术分组。我用本地笔记做整理，暂时不用 X 和 Wiki 写入」。许多改动在设置里就能完成。
 

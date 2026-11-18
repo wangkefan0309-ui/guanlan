@@ -572,9 +572,16 @@ class FileOptionsModal extends Modal {
 }
 function pickFile(accept='.md,.html,.htm,.pdf,.srt,.vtt'): Promise<File | null> {
   return new Promise(resolve => {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = accept; input.style.display = 'none'; document.body.append(input);
-    const finish = (file: File | null) => { resolve(file); input.remove(); };
-    input.addEventListener('change', () => finish(input.files?.[0] ?? null), { once: true }); input.addEventListener('cancel', () => finish(null), { once: true }); input.click();
+    const input = activeDocument.body.createEl('input', {
+      attr: { type: 'file', accept, hidden: true },
+    });
+    const finish = (file: File | null) => {
+      input.remove();
+      resolve(file);
+    };
+    input.addEventListener('change', () => finish(input.files?.[0] ?? null), { once: true });
+    input.addEventListener('cancel', () => finish(null), { once: true });
+    input.click();
   });
 }
 class ConnectionModal extends Modal {
@@ -649,14 +656,14 @@ class SubscriptionsModal extends Modal {
       input.selectEl.setAttribute('aria-label', '选择来源');
       for (const source of initial.sources) input.addOption(source.config.id, source.name);
       input.setValue(initial.sources[0]!.config.id).onChange(value => {
-        for (const [id, group] of groups) group.style.display = id === value ? '' : 'none';
+        for (const [id, group] of groups) group.hidden = id !== value;
       });
     });
     for (const source of initial.sources) {
       const config = draft.find(item => item.id === source.config.id)!;
       if (!config.topic) { config.categoryId = 'leisure'; config.topic = 'leisure'; }
       const group = container.createDiv(); groups.set(config.id, group);
-      if (config.id !== initial.sources[0]!.config.id) group.style.display = 'none';
+      group.hidden = config.id !== initial.sources[0]!.config.id;
       group.createEl('h3', { text: source.name });
       new Setting(group).setName('显示名称').addText(input => input.setValue(config.name ?? source.name).onChange(value => { config.name = value.trim(); }));
       new Setting(group).setName('更新链接').setDesc(['wechat', 'rss'].includes(config.platform) ? 'RSS/Atom 更新链接；可能包含私人订阅凭证，默认隐藏。' : 'YouTube 使用频道 RSS；B站使用已配置的 RSSHub 更新链接。').addText(input => {
@@ -857,7 +864,9 @@ class WorkbenchSettings extends PluginSettingTab {
     this.renderInto(this.containerEl);
   }
   renderInto(container:HTMLElement,selected?:SettingsSection) {
-    container.empty(); container.addClass('sw-settings-content'); container.createEl('h2', { text: `${WORKBENCH_NAME}设置` });
+    container.empty();
+    container.addClass('sw-settings-content');
+    new Setting(container).setName(`${WORKBENCH_NAME}设置`).setHeading();
     container.createEl('p',{cls:'sw-muted',text:'按用途展开设置。修改先保留为草稿，点击底部保存后生效；关闭窗口放弃本次未保存修改。'});
     const group=(key:SettingsSection,name:string,description:string,open=false)=>{const section=container.createEl('details',{cls:'sw-settings-group'});section.open=selected?key===selected:open;section.dataset.section=key;section.createEl('summary',{text:name});section.createEl('p',{cls:'sw-muted',text:description});return section;};
     const storage=group('storage','阅读目录与文件保存','选择存储位置，保留正文、原件和阅读进度。',true);

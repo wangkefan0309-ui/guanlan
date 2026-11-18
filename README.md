@@ -7,7 +7,7 @@
 <p align="center">Bring the updates you follow, your reading picks, and your notes together in Obsidian. Work with your AI agent to turn what you learn into a personal knowledge base.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.6-31595b" alt="Version: v0.22.6">
+  <img src="https://img.shields.io/badge/version-v0.22.7-31595b" alt="Version: v0.22.7">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: Desktop ≥ 1.13">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: ≥ 22.13">
 </p>
@@ -135,16 +135,16 @@ Once listed, look for **Guanlan** in Obsidian's Community plugins. For manual in
 
 You need **Obsidian desktop 1.13.0 or later**. Building from source and running the material service require **Node.js 22.13 or later**. The examples use Windows, the environment verified for the login startup controller, the bundled RSSHub setup scripts, and free X setup.
 
-1. If you have a plugin ZIP, extract the `source-workbench` folder. From source, run the following in the repository:
+1. For manual installation, download `manifest.json`, `main.js`, and `styles.css` from the GitHub release. To build the files from source, run these commands in the repository.
 
    ```powershell
    npm ci
    npm run build
    ```
 
-   Put the extracted `source-workbench` folder in your vault's `.obsidian/plugins/`. If you built from source, create the folder there and copy `manifest.json`, `main.js`, and `styles.css` from `dist/plugin/`. Enable **Guanlan** under Obsidian's Community plugins.
+   Copy the three release files, or the files built in `dist/plugin/`, to `.obsidian/plugins/source-workbench/` in your vault. Enable **Guanlan** under Obsidian's Community plugins.
 
-2. Start the material service for subscriptions, webpage extraction, public captions, or external search. The plugin ZIP contains the plugin and its third-party notice. Start the service separately from source. Run `npm ci` first if you have yet to install dependencies.
+2. Start the material service from source for subscriptions, webpage extraction, public captions, or external search. Run `npm ci` first if you have yet to install dependencies.
 
    ```powershell
    npm run dev:server
@@ -302,7 +302,7 @@ Edits are a draft until you click **保存配置** (Save settings). Set categori
 
 ## Adapt it with your own agent
 
-If all you want is to install the plugin, give your own agent the plugin ZIP, the README, and a description of what you need. To change how it works, give it the **source repository** too. The ZIP contains compiled JavaScript. The repository includes the modules, types, tests, workflow diagrams, and build scripts.
+For installation, give your own agent the release files, this README, and a description of what you need. To change how it works, give it the **source repository**, which includes the modules, types, tests, workflow diagrams, and build scripts.
 
 Start with your reading habits. For example, “I follow ten legal blogs and two video channels. I read for 20 minutes a day. Group sources under courts, corporate compliance, and technology. Keep my notes local and leave X and Wiki writing off.” Much of that can be handled in settings.
 

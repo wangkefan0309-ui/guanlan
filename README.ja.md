@@ -7,7 +7,7 @@
 <p align="center">購読先の更新、読みたい記事、知識ノートを Obsidian にひとまとめに。AI エージェントと一緒に、読んで得た知識を自分のナレッジベースに残せます。</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.6-31595b" alt="バージョン: v0.22.6">
+  <img src="https://img.shields.io/badge/version-v0.22.7-31595b" alt="バージョン: v0.22.7">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: デスクトップ版 1.13 以降">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: 22.13 以降">
 </p>
@@ -130,14 +130,14 @@
 
 **Obsidian デスクトップ版 1.13.0 以降**が必要です。ビルドと収集サービスには **Node.js 22.13 以降**が必要です。以下は Windows の例です。常駐運用、RSSHub、無料の X 検索を補助するスクリプトは Windows で検証しています。プラグインの画面は中国語なので、操作名は実際の表示に合わせています。
 
-1. ZIP があれば `source-workbench` フォルダを取り出します。ソースからインストールする場合は、リポジトリのルートで次を実行します。
+1. 手動でインストールする場合は、GitHub Releases から `manifest.json`、`main.js`、`styles.css` をダウンロードします。ソースからビルドする場合は、リポジトリのルートで次を実行します。
 
    ```powershell
    npm ci
    npm run build
    ```
 
-   ZIP の `source-workbench` を Vault 内の `.obsidian/plugins/` に置きます。ソースからビルドした場合は、その場所に `source-workbench` を作り、`dist/plugin/` 内の `manifest.json`、`main.js`、`styles.css` をコピーします。Obsidian のコミュニティプラグインから「观澜」を有効にします。
+   ダウンロードした 3 ファイル、またはビルド後の `dist/plugin/` にある同名のファイルを、Vault 内の `.obsidian/plugins/source-workbench/` にコピーします。Obsidian のコミュニティプラグインから **Guanlan** を有効にします。
 
 2. ウェブページの取得、定期購読、公開字幕の取得、外部検索を使う場合は、リポジトリのルートで収集サービスを起動します。まだ依存関係を導入していなければ、先に `npm ci` を実行します。
 
@@ -297,7 +297,7 @@ HTML の原本は取得時のレスポンスです。Markdown 内の外部画像
 
 ## 自分の AI エージェントでカスタマイズ
 
-インストールだけなら、プラグインの ZIP、この README、実現したいことを AI エージェントに渡してください。機能も変えたいなら、**リポジトリのソースコード**も渡すと進めやすくなります。ZIP の中身はビルド済みの JavaScript です。モジュール、型、テスト、フロー図、ビルド手順はリポジトリにあります。
+インストールする場合は、Release の 3 ファイル、この README、実現したいことを AI エージェントに渡してください。機能を変える場合は、モジュール、型、テスト、フロー図、ビルド手順がある**リポジトリのソースコード**も渡してください。
 
 まず自分の読み方を伝えてください。たとえば「法律ブログ十件と動画チャンネル二件だけを追いたい。読むのは毎日二十分。裁判所、企業コンプライアンス、技術に分けたい。ノートはローカルに残し、今は X も Wiki への書き込みも使わない」といった具合です。設定を変えるだけで対応できる部分も多くあります。
 

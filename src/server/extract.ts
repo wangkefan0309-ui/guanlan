@@ -53,11 +53,12 @@ export function extractHtml(html: string, options: ExtractOptions = {}): Materia
   const contentProbe = article?.cloneNode(true) as Element | undefined;
   for (const node of contentProbe?.querySelectorAll('script,style,iframe,video,audio,object,embed,input,button,svg') ?? []) node.remove();
   if (!contentProbe?.textContent?.replace(/[\s\p{Cf}]/gu, '') && shortText && isWechat) {
-    const shortDoc = parseHTML('<html><body><article></article></body></html>').document;
-    article = shortDoc.querySelector('article');
-    // WeChat uses this field for both plain short posts and HTML hydrated into an empty container.
-    if (fieldIsHtml) article!.innerHTML = shortText;
-    else article!.textContent = shortText;
+    if (fieldIsHtml) {
+      article = fieldDocument.body;
+    } else {
+      article = fieldDocument.createElement('article');
+      article.textContent = shortText;
+    }
     scope = '微信公众号页面内容字段提取';
   }
   if (!article && !isWechat) {
