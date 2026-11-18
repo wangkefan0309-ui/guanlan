@@ -142,8 +142,6 @@ flowchart LR
 | `src/server/material-ledger.ts` | 当前分段账本、流式旧账本迁移、逐条哈希与原子索引提交 |
 | `src/server/cloud-export.ts` / `ledger.ts` | 云端单文件快照契约验证；保留实例/序号，重置来源回执，不读取Vault或模型Key |
 | `src/core/settings.ts` | 配置校验、存储配置恢复、API 地址与客户端超时 |
-| `src/core/plugin-update.ts` / `plugin-update-trust.ts`、`src/plugin/plugin-update-files.ts` | 固定签名信任、四程序校验、事务备份/恢复及自身插件路径保护 |
-| `src/server/plugin-updates.ts`、`scripts/publish-local-update.mjs` / `update-local-runtime.mjs` | 本机鉴权更新包、维护者签名发布、后台正常停服与完整备份升级 |
 | `scripts/runtime-backup-cloud.py` / `rotate-runtime-backups.mjs` | 发布后历史快照加密去重归档、云端回读核验、本地两版本保留及独立目录恢复 |
 | `src/core/categories.ts` / `source-management.ts` | 分类契约、默认类兼容、来源到配置转换；新增 UP 继承已保存且 UID 匹配的 RSSHub origin |
 | `scripts/rsshub.ps1` / `rsshub-runtime.mjs` | 自有 loopback wrapper、UA/代理配置、鉴权管理和固定原源码启动，不修改 RSSHub |
@@ -161,7 +159,6 @@ flowchart LR
 
 材料服务提供GET `/v1/status`、`/v1/runtime/identity`、`/v1/feed`，POST `/v1/runtime/stop`、`/v1/import`、`/v1/transcript`，GET/POST `/v1/subscriptions`，POST `/v1/subscriptions/poll`、`/v1/sources/resolve`。`poll`的`{}`为显式强制检查，`{recoverNetwork:true}`仅提前处理至少一分钟前失败的网络来源，其他来源遵守到期时间；运行中的采集合并。RSSHub wrapper独立提供鉴权GET `/_workbench/rsshub`及POST `/_workbench/rsshub/stop`，控制器管理API在27187。完整请求/响应见[接入说明](integration-guide.md)。
 
-更新读取为鉴权GET `/v1/plugin-updates` 和 `/v1/plugin-updates/package?version=检查时版本`；后者固定检查到的版本，变化或未准备返回409。响应、签名及四文件契约见[接入说明](integration-guide.md)，安装与恢复见[更新说明](plugin-updates.md)。
 
 兴趣HTTP入口为POST `/v1/exploration/search`、`/v1/exploration/evidence`，免费X为GET `/v1/exploration/x/free/status`、POST `/v1/exploration/x/free/login`、`/v1/exploration/x/free/search`、`/v1/exploration/x/free/post`。暂停的付费入口GET `/v1/exploration/x/status`、POST `/v1/exploration/x/search`保留。全部需要材料Bearer；免费post仅返回材料，不改变订阅账本/游标。模型调用在插件，X凭据在专用本机配置，端点不接收Cookie。
 
@@ -286,11 +283,7 @@ RAW/Wiki状态不从Claudian回答文字推断，读取当前run的source/run事
 
 ## 程序更新与数据隔离
 
-v0.16.3 的 PluginUpdater 接收固定公钥核验的 Ed25519 更新包，版本、身份、四文件集合、大小与 SHA-256 均须一致。LocalPluginUpdateFiles 只访问实际 vault.configDir 下自身插件程序、只读 data.json 和更新事务目录，拒绝越界与符号链接；替换前复核旧哈希，临时文件原子替换，失败不吞掉实际错误。配置另存备份，更新不能写回当前 data.json 或阅读目录。
-
-事务依次 prepared、installing、ready、completed；安装失败或可加载实例的启动恢复使用原字节回退，外部修改保留并记录 recovery-needed。旧实例安装后调用已实测的 disablePlugin、loadManifest（仅自身目录）、enablePlugin，核对真实加载版本及 updateReady，失败释放自身更新锁后回到旧版。正常启动完成初始校验后才标记就绪。锁只清理确认原进程不存在的记录，不停止外部进程。恢复边界及维护命令见[插件内更新](plugin-updates.md)。
-
-ReadingLibrary 与 ExplorationLibrary 暴露排队操作 busy 状态；更新入口同时核对同步、HTTP、模型首次结果待保存、探索、知识队列及工作台草稿。操作中拒绝程序替换，更新中暂停自动任务及工作台定时刷新。当前更新源是配置好的 loopback 材料后台，使用已有令牌；更新检查不调用模型或修改材料。
+社区版通过 Obsidian 更新插件程序，保持插件 ID 和现有目录不变。材料服务独立运行与升级；先备份现有库和服务数据。安装路径、构建产物和升级办法见[插件安装与更新](plugin-updates.md)。旧本机签名维护与私有归档不属于社区版分发。
 
 ## 历史后台快照归档
 

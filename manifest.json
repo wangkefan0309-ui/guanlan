@@ -1,9 +1,9 @@
 {
   "id": "source-workbench",
-  "name": "观澜",
-  "version": "0.22.5",
+  "name": "Guanlan",
+  "version": "0.22.6",
   "minAppVersion": "1.13.0",
-  "description": "自动同步订阅更新，按来源优先级集中阅读公众号文章与视频，并接续知识流程。",
+  "description": "Follow sources, read selected articles and videos, and save them to a local reading library.",
   "author": "Silas",
   "isDesktopOnly": true
 }

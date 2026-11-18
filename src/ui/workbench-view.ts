@@ -158,14 +158,13 @@ export class Workbench {
     }
   }
   dispose() { this.disposed = true; ++this.generation;this.root.removeEventListener('pointerdown',this.holdPointer,true);this.root.removeEventListener('keydown',this.cancelDelete);window.removeEventListener('pointerup',this.releasePointer,true);window.removeEventListener('pointercancel',this.releasePointer,true);this.root.replaceChildren(); }
-  updateBlockReason(){return this.busy?'材料操作正在进行，请完成后再更新':this.drafts.size?'有未保存的阅读批注，请保存或放弃修改后再更新':'';}
   private error(error: unknown) { return error instanceof Error ? error.message : '操作失败，请检查连接或本地文件'; }
   private snapshot() {
     return JSON.stringify({ root: this.host.library.root, page: this.page, update: this.updateFilter, date:this.updateDate,exploreDate:this.explorationDate, scope:this.host.collectionScope,catchupDays:this.host.catchupDays,started:this.host.collectionStartedAt, reading: this.readingFilter, lane: this.lane, history: this.history,
       items: this.items, trash: this.trash, batch: [...this.batchIds], batchMode: this.batchMode, confirmingTrash: this.confirmingTrash, knowledge: [...this.knowledge], conflicts: this.conflicts, plan: this.dailyPlan, exploration: this.exploration,explorationDays:this.explorationDays,readWarning:this.readWarning, historyArchive:this.historyArchive,historyDate:this.historyDate,historyWarning:this.historyWarning,
       sources: this.host.sources, categories: this.host.categories, message: this.message, error: this.messageError, busy: this.busy,
       claudian: this.host.claudianReason, configuration: this.host.configurationIssue, sync: this.host.syncSummary, subscriptions: this.host.subscriptionSummary,
-      explore: this.host.explorationSummary, autoExplore: this.host.autoExplorationEnabled, x: this.host.xSummary, guide: this.host.guideConfigured, review: this.host.reviewActionLabel, exploreAction: this.host.explorationActionLabel,pluginUpdate:this.host.updateSummary,updateAvailable:this.host.updateAvailable });
+      explore: this.host.explorationSummary, autoExplore: this.host.autoExplorationEnabled, x: this.host.xSummary, guide: this.host.guideConfigured, review: this.host.reviewActionLabel, exploreAction: this.host.explorationActionLabel });
   }
 
   private operation(label: string, work: () => Promise<unknown>, success = '', cls = 'sw-button') {
@@ -250,7 +249,6 @@ export class Workbench {
     }
     const status = el('div', `sw-status ${this.messageError||this.readWarning ? 'is-error' : ''}`, this.readWarning||this.message);
     status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); main.append(status);
-    if(this.host.updateAvailable){const row=el('div','sw-update-notice');row.append(el('span','',this.host.updateSummary??'有新版本可用'),button('查看更新',()=>this.host.configure('updates')));main.append(row);}
     if (this.host.configurationIssue) {
       const issue = el('div', 'sw-alert'); issue.append(el('p', '', this.host.configurationIssue), button('检查连接与设置', () => this.host.configure())); main.append(issue);
     }

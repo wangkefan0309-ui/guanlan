@@ -117,7 +117,7 @@ CONTRACTS = {
     ],
     'recovery': [
         ('docs/operator-runbook.md', '本机运维', 'Local operation'),
-        ('docs/plugin-updates.md', '签名更新与事务恢复', 'Signed updates and recovery'),
+        ('docs/plugin-updates.md', '插件安装与更新', 'Plugin installation and updates'),
         ('docs/backup-retention.md', '私有归档与轮换', 'Private archive and rotation'),
     ],
 }

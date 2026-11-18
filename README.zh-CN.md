@@ -7,7 +7,7 @@
 <p align="center">汇百川，见新知。把关注的更新、选读和知识笔记汇聚在一起，并通过与 AI Agent 的协作进行知识沉淀，让打造你的 Obsidian 个人知识库更加高效。</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.5-31595b" alt="版本: v0.22.5">
+  <img src="https://img.shields.io/badge/version-v0.22.6-31595b" alt="版本: v0.22.6">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: 桌面版 ≥ 1.13">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: ≥ 22.13">
 </p>
@@ -19,6 +19,10 @@
 ---
 
 作为一款 Obsidian 插件，观澜可以把公众号、YouTube、B 站和其他 RSS 的更新汇集到 Obsidian里。只要打开一个工作台，就能看到自己关注的作者或博主发布了什么、挑几篇阅读，或者找回以前收藏的内容。读完之后如果有值得留下的精华，还可以再把原文交给 AI Agent 进行讨论或整理成知识笔记。
+
+**先试本地阅读：** 打开「藏卷 → 添加材料 → 导入文件」，选一份 Markdown。阅读、导入 Markdown 或字幕、记录进度不用账号、模型或材料服务。联网接入前可查看[服务、数据去向与可能的费用](docs/data-and-network.md#中文)。
+
+**可选联网功能：** 单独运行的材料服务访问你配置的网站和订阅源；AI 功能调用你配置的模型（默认地址为 DeepSeek），检索还可用 Tavily 或 X。部分订阅源、检索和模型服务需要账号或付费。导入文件只读取你选中的文件，可以来自库外；Claudian 接续只在你交办时发送所选材料及任务上下文。
 
 ## 为什么要做观澜
 
@@ -115,7 +119,7 @@
 
 ### 06 · 故障恢复、程序更新与备份
 
-网络按错误类型重试，模型按首次结果恢复。升级前备份，安装时核验签名，历史归档回读成功后才轮换。
+网络按错误类型重试，模型按首次结果恢复。插件由 Obsidian 社区渠道更新；材料服务单独升级，升级前备份数据。
 
 [![故障恢复、程序更新与备份](docs/workflow/public/zh-CN/recovery.svg)](docs/workflow/public/zh-CN/recovery.svg)
 
@@ -123,7 +127,7 @@
 
 ## 快速上手
 
-[**下载 v0.22.5 安装包**](https://github.com/wangkefan0309-ui/guanlan/releases/download/v0.22.5/source-workbench-0.22.5.zip) · 也可以[从源码构建](#快速上手)。ZIP 只含插件，订阅后台按下面的步骤单独运行。
+上架后可在 Obsidian 第三方插件页面搜索 **Guanlan**。手动安装见 [GitHub Releases](https://github.com/wangkefan0309-ui/guanlan/releases)，也可从源码构建。需要订阅或网页导入时，再按下面的步骤启动材料服务。
 
 需要 Obsidian **桌面版 1.13.0 或更新版本**。从源码构建和运行后台需要 **Node.js 22.13 或更高版本**。下面以 Windows 为例，后台常驻、RSSHub 和免费 X 的辅助脚本以 Windows 为已验证环境。
 
@@ -134,7 +138,7 @@
    npm run build
    ```
 
-   将 ZIP 中的 `source-workbench` 文件夹放进 Vault 的 `.obsidian/plugins/`。从源码安装时，在这个位置创建 `source-workbench`，把 `dist/plugin/` 的四个文件复制进去：`manifest.json`、`main.js`、`styles.css`、`AIHOT-MIT.txt`。在 Obsidian 的第三方插件页面启用「观澜」。
+   将 ZIP 中的 `source-workbench` 文件夹放进 Vault 的 `.obsidian/plugins/`。从源码安装时，在这个位置创建 `source-workbench`，把 `dist/plugin/` 的三个文件复制进去：`manifest.json`、`main.js`、`styles.css`。在 Obsidian 的第三方插件页面启用 **Guanlan**。
 
 2. 需要抓取网页、订阅、公开字幕或使用外部探索渠道时，在项目目录运行后台。插件 ZIP 内只有插件程序和第三方版权说明，后台从源码单独启动。没有执行过 `npm ci` 的话先执行一次。
 
@@ -195,7 +199,7 @@ RSS 提供候选文章。微信原页账号、日期或正文核验不过的时�
 - **X**在「远眺」参与按关键词发现。免费路线用自己的 X 账号、专用登录窗口和本机 `twscrape`，每天最多三个 Top 首页检查，每页最多 20 条。失败或结果未知时当日暂停。SocialData 是手动选择的付费备选。收录帖文保存本条正文及接口原件，视频字幕和外链全文要单独取得。 [X 设置与登录](docs/free-x-setup.md)
 - **普通网站**可以通过 RSS/Atom 持续订阅，或输入任意支持提取的公开文章链接做单篇导入。远眺另外支持 DeepSeek 原生联网、免 Key 的 Hacker News/GitHub 公开检索和 Tavily。免 Key 检索的覆盖偏技术，AI 筛选仍需要匹配的模型配置。 [探索流程](docs/active-exploration.md)
 
-采集能否工作取决于**后台进程**能否连到对应平台。在项目实测的 Windows 网络上，YouTube 和 X 需要走可用代理。使用手动服务时可在启动前配置 `HTTPS_PROXY`，Windows 常驻控制器可读取已开启的本机系统代理。浏览器能打开某个站点仍应以后台回执复验。Vault 内已存的笔记可离线阅读。
+采集能否工作取决于**后台进程**能否连到对应平台。在项目实测的 Windows 网络上，YouTube 和 X 需要走可用代理。使用手动服务时可在启动前配置 `HTTPS_PROXY`，浏览器能打开某个站点仍应以后台回执复验。Vault 内已存的笔记可离线阅读。
 
 ## 界面使用指南
 
@@ -288,7 +292,7 @@ RSS 提供候选文章。微信原页账号、日期或正文核验不过的时�
 | **兴趣与主动发现** | 开关、八个发现板块、检索渠道、关键词和偏好。每天默认最多 3 条，可设 1–12 条。默认关闭自动探索。推荐兴趣与今日阅读的学习目标分开设置。 |
 | **X 账号与搜索** | X 要不要纳入搜索、免费账号或付费渠道。用「连接 X 账号」打开专用登录窗口，随后「检查 X 连接」查看状态。 |
 | **Claudian 接续** | 验证当前版本。讨论或直达在每篇材料接续时选。改成自己的 Wiki 或 Agent 需要调整源码里的桥接和存储契约。 |
-| **版本与更新** | 检查本机维护者提供的签名包，确认后点击「一键更新插件」。普通 GitHub ZIP 是手动安装包，签名更新源需另行准备。 |
+| **版本与更新** | 查看当前版本。通过 Obsidian 的第三方插件页面检查和安装社区版更新。 |
 
 设置编辑先留在草稿，点击底部「保存配置」后生效。临时想用另一类来源，只要改信源分类。想让 Agent 改板块名称、默认分类和评分标准，可以从源码调整。
 
@@ -316,4 +320,4 @@ RSS 提供候选文章。微信原页账号、日期或正文核验不过的时�
 
 在本机填写服务令牌、私密 RSS、模型 Key、Google Key 和 X 登录信息。分享仓库或演示时使用示例 Vault。插件配置文件、采集原件、运行目录和备份可能含私密内容。连接模型或搜索服务后，相关材料片段和查询会按所选功能发送给配置的提供方。
 
-观澜的部分采集和探索设计参考并复用了数字生命卡兹克的 [AIHOT](https://github.com/KKKKhazix/AIHOT)。RSSHub 用于可选 B 站路线。复用范围和许可证见 [AIHOT 记录](docs/aihot-reuse.md) 与 [第三方声明](THIRD_PARTY_NOTICES/)。这些声明适用于相应第三方组件，项目根许可证需由维护者单独确定。
+观澜采用 [MIT 许可证](LICENSE)。部分采集和探索设计参考并复用了数字生命卡兹克的 [AIHOT](https://github.com/KKKKhazix/AIHOT)，RSSHub 用于可选 B 站路线。复用范围和相应许可证见 [AIHOT 记录](docs/aihot-reuse.md) 与 [第三方声明](THIRD_PARTY_NOTICES/)。

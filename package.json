@@ -1,7 +1,8 @@
 {
   "name": "obsidian-source-workbench",
-  "version": "0.22.5",
+  "version": "0.22.6",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
@@ -12,6 +13,7 @@
     "test": "vitest run",
     "dev:server": "tsx src/server/main.ts",
     "package": "node scripts/package.mjs",
+    "package:community": "npm run build && node scripts/stage-community.mjs",
     "verify": "npm run typecheck && npm test && npm run build && npm run build:server",
     "rsshub:setup": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/rsshub.ps1 setup",
     "rsshub:start": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/rsshub.ps1 start",

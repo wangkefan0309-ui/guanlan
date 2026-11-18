@@ -16,7 +16,6 @@ import packageInfo from '../../package.json';
 import { SocialDataDiscovery, type SocialDataTransport } from './socialdata';
 import { FreeXDiscovery, type FreeXRuntime } from './free-x';
 import { createFreeXRuntime } from './free-x-runtime';
-import {readPluginUpdate} from './plugin-updates';
 import { YoutubeApiAccess, type YoutubeApiRequest } from './youtube-api';
 
 const importSchema = z.object({
@@ -74,12 +73,6 @@ export function createSourceServer(options: { directory: string; token: string; 
     if (request.method === 'GET' && url.pathname === '/v1/status') {
       const state = await collector.list(); const enabled = state.sources.filter(source => source.config.enabled).length;
       return json(response, 200, { version: packageInfo.version, mode: enabled ? 'local-subscriptions' : 'local-import', subscriptions: enabled ? 'configured' : 'not-configured', enabled, running: state.running, errors: state.sources.filter(source => source.config.enabled && source.status === 'error').length });
-    }
-    if(request.method==='GET'&&url.pathname==='/v1/plugin-updates'){
-      const bundle=await readPluginUpdate(options.directory);return json(response,200,{channel:'local',serviceVersion:packageInfo.version,header:bundle?.header??null});
-    }
-    if(request.method==='GET'&&url.pathname==='/v1/plugin-updates/package'){
-      const bundle=await readPluginUpdate(options.directory);if(!bundle||bundle.header.release.version!==url.searchParams.get('version'))return json(response,409,{error:'该更新版本已变化，请重新检查更新'});return json(response,200,bundle);
     }
     if (request.method === 'GET' && url.pathname === '/v1/subscriptions') return json(response, 200, await collector.list());
     if (request.method === 'GET' && url.pathname === '/v1/youtube/access') return json(response, 200, await youtubeAccess.status());

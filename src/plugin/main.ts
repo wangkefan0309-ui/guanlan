@@ -1,4 +1,4 @@
-import { ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, TFile, TFolder, FileSystemAdapter, requestUrl, normalizePath, addIcon } from 'obsidian';
+import { ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, TFile, TFolder, requestUrl, normalizePath, addIcon } from 'obsidian';
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { ReadingLibrary } from '../core/library';
 import { canonicalIdentity, checkReadingPath, feedSchema, materialSchema, readingRoot, topicLabels, topics, webUrl } from '../core/model';
@@ -27,8 +27,6 @@ import { parseSubtitles, transcriptMaterial, videoIdentity } from '../core/trans
 import { ClaudianBridge } from './claudian';
 import {storageRoot,preflightStorage} from '../core/storage';
 import { updatesForDay } from '../core/subscription-days';
-import {PluginUpdater,verifyUpdateHeader,compareVersions,type SignedUpdate} from '../core/plugin-update';
-import {LocalPluginUpdateFiles} from './plugin-update-files';
 import { WORKBENCH_ICON_ID, WORKBENCH_ICON_SVG } from './workbench-icon';
 import { WORKBENCH_NAME } from '../ui/workbench-brand';
 
@@ -60,59 +58,6 @@ class VaultStore implements FileStore {
   async remove(path:string){this.check(path);if(!path.startsWith(`${this.root}/_工作台/待提交/`)) throw new Error('只允许清理工作台导入恢复记录');const file=this.app.vault.getAbstractFileByPath(path);if(file instanceof TFile) await this.app.vault.delete(file);}
 }
 export default class SourceWorkbench extends Plugin implements WorkbenchHost {
-  private updater?:PluginUpdater;
-  private updateFiles?:LocalPluginUpdateFiles;
-  private updating=false;
-  private updateTimer?:number;
-  private updateConnection?:{url:string;token:string};
-  private availableUpdate?:SignedUpdate;
-  private updateChecking?:Promise<void>;
-  private activeServiceCalls=0;
-  updateSummary='版本更新尚未检查';
-  updateReady=false;
-  get updateAvailable(){return !!this.availableUpdate;}
-  get updateInProgress(){return this.updating;}
-  private pluginManager(){const manager=(this.app as unknown as {plugins:{disablePlugin(id:string):Promise<void>;enablePlugin(id:string):Promise<boolean>;loadManifest(path:string):Promise<void>;plugins:Record<string,SourceWorkbench>}}).plugins;if(!manager?.disablePlugin||!manager.enablePlugin||!manager.loadManifest)throw Error('当前Obsidian缺少已验证的插件重载接口');return manager;}
-  private async reloadUpdatedPlugin(){const manager=this.pluginManager();await manager.disablePlugin(this.manifest.id);await manager.loadManifest(`${this.app.vault.configDir}/plugins/${this.manifest.id}`);const enabled=await manager.enablePlugin(this.manifest.id);return enabled?manager.plugins[this.manifest.id]:undefined;}
-  private updateBlockReason(){
-    if(this.refreshingSubscriptions||this.synchronizing||this.drainingKnowledge||this.activeServiceCalls||[...this.libraries.values()].some(lib=>lib.busy)||[...this.reviewSessions.values()].some(session=>session.busy||session.pendingSave||session.pendingRejected)||[...this.explorations.values()].some(lib=>lib.busy||lib.pendingSave))return '材料或模型操作尚未结束，请完成或补保存后再更新';
-    for(const leaf of this.app.workspace.getLeavesOfType(VIEW)){const reason=(leaf.view as WorkbenchView).workbench?.updateBlockReason();if(reason)return reason;}return '';
-  }
-  private assertUpdateIdle(){const reason=this.updateBlockReason();if(reason)throw Error(reason);}
-  async checkPluginUpdates(notify=false){
-    if(!this.updater){if(notify)new Notice(this.updateSummary);return;}
-    if(this.updating)return;if(this.updateChecking)return this.updateChecking;
-    const connection={url:this.settings.serviceUrl,token:this.settings.serviceToken},current=this.manifest.version;
-    this.updateChecking=(async()=>{try{
-      const url=new URL(apiBase(connection.url));if(!['127.0.0.1','localhost','[::1]'].includes(url.hostname)||!connection.token)throw Error('本机更新源尚未连接；阅读和手动导入仍可使用');
-      const response=await this.service('/v1/plugin-updates',undefined,{...this.settings,serviceUrl:connection.url,serviceToken:connection.token}) as {header:unknown;serviceVersion:string};
-      if(connection.url!==this.settings.serviceUrl||connection.token!==this.settings.serviceToken)return;
-      const header=response.header?verifyUpdateHeader(response.header):null;
-      this.availableUpdate=header&&compareVersions(header.release.version,current)>0?header:undefined;this.updateConnection=connection;
-      this.updateSummary=this.availableUpdate?`有新版本 v${header!.release.version} · 当前 v${current}`:header?`当前 v${current} · 已是本机更新源最新版本`:`当前 v${current} · 维护者尚未准备新版`;
-      if(this.availableUpdate&&compareVersions(response.serviceVersion,header!.release.minServiceVersion)<0)this.updateSummary+=' · 需维护者先更新后台';
-      if(notify)new Notice(this.updateSummary);
-    }catch(error){this.availableUpdate=undefined;this.updateSummary=`更新检查暂不可用 · ${friendlyError(error)}`;if(notify)new Notice(this.updateSummary);}finally{this.refresh();}})().finally(()=>{this.updateChecking=undefined;});return this.updateChecking;
-  }
-  async installPluginUpdate(assertSettingsUnchanged:()=>void=()=>{}){
-    if(this.updating)throw Error('插件正在更新，请稍候');this.assertUpdateIdle();assertSettingsUnchanged();
-    const header=this.availableUpdate,connection=this.updateConnection;if(!header||!connection||connection.url!==this.settings.serviceUrl||connection.token!==this.settings.serviceToken)throw Error('请先检查更新');
-    const manager=this.pluginManager();if(!this.updater||!this.updateFiles)throw Error('本机插件更新尚未就绪');
-    this.updating=true;let releaseLock:(()=>Promise<void>)|undefined,state:Awaited<ReturnType<PluginUpdater['prepare']>>|undefined;
-    try{
-      await this.saving;if(connection.url!==this.settings.serviceUrl||connection.token!==this.settings.serviceToken)throw Error('更新连接已改变，请重新检查更新');releaseLock=await this.updateFiles.lock();
-      const updateSettings={...this.settings,serviceUrl:connection.url,serviceToken:connection.token};
-      const bundle=await this.service(`/v1/plugin-updates/package?version=${encodeURIComponent(header.release.version)}`,undefined,updateSettings),status=await this.service('/v1/status',undefined,updateSettings) as {version:string};
-      if(JSON.stringify(verifyUpdateHeader((bundle as {header:unknown}).header))!==JSON.stringify(header))throw Error('检查后的更新包发生变化，请重新检查');
-      state=await this.updater.prepare(bundle,this.manifest.version,status.version);
-      await this.updater.install(state,()=>{this.assertUpdateIdle();assertSettingsUnchanged();if(connection.url!==this.settings.serviceUrl||connection.token!==this.settings.serviceToken)throw Error('更新连接已改变，请重新检查更新');});
-      this.updateSummary=`已安装 v${state.to}，正在重载工作台…`;const loaded=await this.reloadUpdatedPlugin();if(!loaded?.updateReady||loaded.manifest.version!==state.to)throw Error('新版插件未成功启动');
-      await this.updater.complete();await loaded.activate();new Notice(`工作台已更新到 v${state.to}；配置与阅读材料保留`);return `已更新到 v${state.to}`;
-    }catch(error){
-      if(state&&['prepared','installing','ready'].includes(state.phase)){const reload=state.phase!=='prepared';await this.updater.rollback(state);if(reload){await manager.disablePlugin(this.manifest.id);await releaseLock?.();releaseLock=undefined;const loaded=await this.reloadUpdatedPlugin();if(loaded?.updateReady)await loaded.activate();}}
-      throw error;
-    }finally{this.updating=false;await releaseLock?.();}
-  }
   settings: Settings = { ...settingsDefaults };
   library!: ReadingLibrary;
   sources: WorkbenchHost['sources'] = registeredSources.map(source => ({ ...source, publicationDates:source.platform==='wechat'?{}:undefined, subscriptionStatus: undefined as string | undefined }));
@@ -134,18 +79,18 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
   get readingDirectories(){return [...this.libraries.keys()];}
   private async recordStorage(root:string){if(this.settings.initializedDirectories.includes(root))return;const result=this.saving.then(async()=>{const snapshot={...this.settings,initializedDirectories:[...new Set([...this.settings.initializedDirectories,root])]};await this.saveData(snapshot);this.settings=snapshot;});this.saving=result.catch(()=>{});await result;}
   private store(root:string){return new VaultStore(this.app,root,()=>this.assertWritable(root),()=>this.recordStorage(root));}
-  private assertWritable(root=this.library?.root){if(this.updating)throw Error('工作台正在更新，请完成后再处理材料');if(root&&this.pausedStorageRoots.has(root))throw new Error(this.pausedStorageRoots.get(root));if(this.configurationIssue)throw new Error(this.configurationIssue);}
+  private assertWritable(root=this.library?.root){if(root&&this.pausedStorageRoots.has(root))throw new Error(this.pausedStorageRoots.get(root));if(this.configurationIssue)throw new Error(this.configurationIssue);}
   private pauseStorage(path:string){for(const root of this.libraries.keys())if(path===root||root.startsWith(path+'/')){const issue='阅读目录已移动或删除，写入已暂停；请恢复原目录，或选择新的独立目录后保存';this.pausedStorageRoots.set(root,issue);if(root===this.library.root){this.configurationIssue=issue;this.settings={...this.settings,autoSync:false,autoExplore:false,autoDailyAi:false};this.configureAutoSync();new Notice(issue);}}}
   private knowledgeFor(root:string) { let pipeline=this.knowledgeLibraries.get(root);if(!pipeline){pipeline=new KnowledgePipeline(this.store(root),root);this.knowledgeLibraries.set(root,pipeline);}return pipeline; }
   private get claudian(){
     return this.claudianBridge??=new ClaudianBridge(this.app,{
       load:async()=>{const path=`${this.app.vault.configDir}/plugins/${this.manifest.id}/claudian-compatibility.json`;return await this.app.vault.adapter.exists(path)?JSON.parse(await this.app.vault.adapter.read(path)):null;},
-      save:async receipt=>{if(this.updating)throw Error('工作台正在更新，请完成后再验证');await this.app.vault.adapter.write(`${this.app.vault.configDir}/plugins/${this.manifest.id}/claudian-compatibility.json`,JSON.stringify(receipt,null,2));},
+      save:async receipt=>{await this.app.vault.adapter.write(`${this.app.vault.configDir}/plugins/${this.manifest.id}/claudian-compatibility.json`,JSON.stringify(receipt,null,2));},
     });
   }
   get claudianReason() { return this.claudian.available(); }
   get claudianStatus() { return this.claudian.status; }
-  async verifyClaudian(){if(this.updating)throw Error('工作台正在更新，请完成后再验证');const message=await this.claudian.verify();this.refresh();return message;}
+  async verifyClaudian(){const message=await this.claudian.verify();this.refresh();return message;}
   async handoffKnowledge(item:ReadingItem,library:ReadingLibrary,mode?:KnowledgeMode,queuedOnly=false) {
     this.blockedKnowledge.delete(`${library.root}:${itemKey(item)}`);
     const bridge=this.claudian;
@@ -166,7 +111,7 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     const message=await this.claudian.recover(this.knowledgeFor(library.root),saved);this.refresh();return message;
   }
   private async drainKnowledge() {
-    if(this.updating||this.drainingKnowledge||this.claudianReason||this.configurationIssue)return;this.drainingKnowledge=true;
+    if(this.drainingKnowledge||this.claudianReason||this.configurationIssue)return;this.drainingKnowledge=true;
     const library=this.library,pipeline=this.knowledgeFor(library.root);let key='';
     try{for(const item of await library.list()){key=`${library.root}:${itemKey(item)}`;if(this.blockedKnowledge.has(key))continue;const receipt=await pipeline.receipt(item);if(receipt&&knowledgePending(receipt)){await this.handoffKnowledge(item,library,undefined,true);break;}}}
     catch(error){if(key)this.blockedKnowledge.add(key);new Notice(`知识接续排队未提交：${error instanceof Error?error.message:'读取失败'}；请在工作台检查材料`);}
@@ -308,7 +253,7 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     try{const evidence=searchResultSchema.parse(await this.service('/v1/exploration/evidence',{candidates:search.candidates},settings));return searchResultSchema.parse({...search,candidates:evidence.candidates,snapshots:[...search.snapshots,...evidence.snapshots].slice(0,14),warnings:[...evidence.warnings,...search.warnings.filter(message=>!message.startsWith('部分候选只有标题')),...(evidence.candidates.some(item=>item.coverage==='metadata')?['部分候选只有标题，证据不足时不推荐']:[])].slice(0,8)});}
     catch{return {...search,warnings:[...search.warnings,'原页核对服务未完成，保留首次联网结果，不重发模型检索'].slice(0,8)};}
   }
-  private autoExplore() { if (this.updating) return; const reading = this.library; void this.exploreNow(true).catch(error => { if (reading === this.library) { this.explorationSummary = `探索结果未保存 · ${friendlyError(error)}`; this.refresh(); } }); }
+  private autoExplore() { const reading = this.library; void this.exploreNow(true).catch(error => { if (reading === this.library) { this.explorationSummary = `探索结果未保存 · ${friendlyError(error)}`; this.refresh(); } }); }
   private async collectRecommendation(item:ExplorationRecommendation,library:ReadingLibrary,settings:Settings):Promise<ReadingItem> {
     if (item.candidate.origin === 'subscription') {
       const saved = (await library.list()).reverse().find(saved => saved.url && canonicalIdentity(saved.url) === canonicalIdentity(item.candidate.url));
@@ -335,12 +280,6 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
   get guideConfigured() { return !!(this.settings.guideUrl && this.settings.guideModel && this.settings.guideKey); }
   get reviewActionLabel() { const session = this.reviewSessions.get(this.library.root); return session?.pendingSave ? '重试保存 AI 导读' : session?.pendingRejected ? '重试保存模型回执' : '生成 AI 精选'; }
   async onload() {
-    if(this.app.vault.adapter instanceof FileSystemAdapter){
-      try{this.updateFiles=await LocalPluginUpdateFiles.open(this.app.vault.adapter.getBasePath(),this.app.vault.configDir,this.manifest.id);this.updater=new PluginUpdater(this.updateFiles);
-        await this.updateFiles.recoverLock((await this.updater.state())?.phase==='ready');
-        if(await this.updater.recover()){new Notice('上次插件更新被中断，已恢复旧程序，正在重载');window.setTimeout(()=>void this.reloadUpdatedPlugin().catch(()=>new Notice('旧程序已恢复，请关闭再开启工作台插件')),0);return;}
-      }catch(error){this.updateSummary=`插件更新恢复需检查 · ${friendlyError(error)}`;this.updater=undefined;}
-    }
     const restored = restoreSettings(await this.loadData()); this.settings = restored.settings;
     await this.claudian.loadVerification();
     let startupCachePending=false;
@@ -362,7 +301,7 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     this.addSettingTab(new WorkbenchSettings(this.app, this));
     this.autoSyncScheduler = new AutoSync(() => {
       const settings = { ...this.settings }; const library = this.library;
-      if (this.updating || !settings.autoSync || !settings.serviceToken) return null;
+      if (!settings.autoSync || !settings.serviceToken) return null;
       return { key: this.syncKey(library, settings), run: () => this.syncFor(library, settings, true) };
     }, outcome => {
       if (outcome.key !== this.syncKey(this.library, this.settings)) return;
@@ -388,11 +327,8 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     this.knowledgeTimer=window.setInterval(()=>void this.drainKnowledge(),15_000);
     if (restored.migrated&&!this.configurationIssue) void this.saveSettings().catch(() => new Notice('旧伴读配置清理未保存，请在连接与设置中保存配置；每日导读配置已保留'));
     void this.refreshSubscriptions();
-    await this.updater?.complete();this.updateReady=true;
-    this.app.workspace.onLayoutReady(()=>{window.setTimeout(()=>void this.checkPluginUpdates(),1000);});
-    this.updateTimer=window.setInterval(()=>void this.checkPluginUpdates(),6*60*60_000);
   }
-  onunload() {this.unloaded=true;this.updateReady=false;if(this.updateTimer!==undefined)window.clearInterval(this.updateTimer); this.autoSyncScheduler?.stop(); if (this.autoSyncTimer !== undefined) window.clearInterval(this.autoSyncTimer); if (this.explorationTimer !== undefined) window.clearInterval(this.explorationTimer);if(this.knowledgeTimer!==undefined)window.clearInterval(this.knowledgeTimer); }
+  onunload() {this.unloaded=true; this.autoSyncScheduler?.stop(); if (this.autoSyncTimer !== undefined) window.clearInterval(this.autoSyncTimer); if (this.explorationTimer !== undefined) window.clearInterval(this.explorationTimer);if(this.knowledgeTimer!==undefined)window.clearInterval(this.knowledgeTimer); }
   private syncKey(library: ReadingLibrary, settings: Settings) { return JSON.stringify([library.root, settings.serviceUrl, settings.serviceToken]); }
   private configureAutoSync() {
     if (this.autoSyncTimer !== undefined) window.clearInterval(this.autoSyncTimer);
@@ -411,7 +347,6 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     const snapshot = structuredClone(this.settings); const result = this.saving.then(() => this.saveData(snapshot)); this.saving = result.catch(() => {}); await result;
   }
   async applySettings(input: Settings) {
-    if(this.updating)throw Error('插件正在更新，请完成后再保存设置');
     const snapshot = parseSettings(input);
     const result = this.saving.then(async()=> { snapshot.directory=await this.validateStorage(snapshot.directory);snapshot.initializedDirectories=[...new Set([...this.settings.initializedDirectories,...snapshot.initializedDirectories,...(this.app.vault.getAbstractFileByPath(snapshot.directory) instanceof TFolder?[snapshot.directory]:[])])];snapshot.directoryApproved=true;await this.saveData(snapshot); this.settings=snapshot;this.configurationIssue='';this.pausedStorageRoots.delete(snapshot.directory); this.createLibrary(); this.syncSummary=''; this.configureAutoSync(); this.refresh(); void this.refreshSubscriptions(); void this.refreshXStatus(); void this.autoSyncScheduler?.request(); this.autoExplore(); });
     this.saving=result.catch(()=>{}); await result;
@@ -426,7 +361,6 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
   configureSubscriptions() { new SubscriptionsModal(this.app, this, { ...this.settings }).open(); }
   addSource() { new SubscriptionsModal(this.app, this, { ...this.settings }, true).open(); }
   async refreshSubscriptions(settings = { ...this.settings }) {
-    if(this.updating)return;
     try {
       const state = subscriptionsViewSchema.parse(await this.service('/v1/subscriptions', undefined, settings));
       if (settings.serviceUrl !== this.settings.serviceUrl || settings.serviceToken !== this.settings.serviceToken) return;
@@ -452,7 +386,6 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     this.subscriptionSummary = `已启用 ${enabled} 个来源 · ${state.running ? '正在采集' : failed.length ? `${failed.length} 个来源待恢复` : '当前无采集错误'} · ${this.settings.autoSync ? '自动同步已开启' : '手动同步'}`;
   }
   async setSubscriptionEnabled(id: string, enabled: boolean): Promise<string> {
-    if (this.updating) throw new Error('插件正在更新，请稍后重试');
     const connection = { ...this.settings };
     const state = subscriptionsViewSchema.parse(await this.service('/v1/subscriptions', undefined, connection));
     const source = state.sources.find(source => source.config.id === id);
@@ -465,20 +398,17 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
   async openFile(path: string) { checkReadingPath(this.library.root,path); const file = this.app.vault.getAbstractFileByPath(path); if (!(file instanceof TFile)) throw new Error('文件未保存到本地'); await this.app.workspace.getLeaf('tab').openFile(file); }
   openOriginal(url: string) { window.open(webUrl.parse(url), '_blank', 'noopener,noreferrer'); }
   async service(path: string, body?: unknown, settings = { ...this.settings }): Promise<unknown> {
-    this.activeServiceCalls++;try{
     if (!settings.serviceToken) throw new Error('请先在设置中填写材料服务令牌');
     const response = await withTimeout(requestUrl({ url: `${apiBase(settings.serviceUrl)}${path}`, method: body === undefined ? 'GET' : 'POST', headers: { Authorization: `Bearer ${settings.serviceToken}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), throw: false }),path === '/v1/exploration/x/free/search' ? 205_000 : path === '/v1/exploration/x/search' ? 110_000 : path === '/v1/exploration/search' ? 90_000 : 45_000,path.startsWith('/v1/exploration/') ? '材料服务响应超时；探索调用结果未知，当日不自动重发' : '材料服务响应超时');
     let json; try { json=JSON.parse(response.text); } catch { throw new Error(`服务返回 HTTP ${response.status}，响应不是有效 JSON`); }
     if(path==='/v1/transcript'&&response.status===404)throw new Error('当前材料服务没有文字稿接口；请升级到 v0.13.0，或直接导入 SRT/VTT/Markdown 文件');
-    if(path.startsWith('/v1/plugin-updates')&&response.status===404)throw Error('本机后台尚未提供更新通道，请维护者先更新后台');
     if (response.status !== 200) throw new Error(json?.error || `服务返回 HTTP ${response.status}`); return json;
-    }finally{this.activeServiceCalls--;}
   }
   sync(): Promise<string> {
     return this.syncFor(this.library, { ...this.settings }, false);
   }
   checkUpdates(): Promise<string> {
-    if (this.updating || this.unloaded) return Promise.reject(Error('插件正在更新或退出，请稍后再检查'));
+    if (this.unloaded) return Promise.reject(Error('插件已退出，请重新启用后再检查'));
     const library = this.library, settings = { ...this.settings }, key = this.syncKey(library, settings);
     if (this.refreshingSubscriptions) return this.refreshingSubscriptions.key === key ? this.refreshingSubscriptions.promise
       : Promise.reject(Error('另一阅读目录或连接仍在检查，请完成后再试'));
@@ -609,7 +539,7 @@ class WorkbenchView extends ItemView {
   private refreshTimer?:number;
   constructor(leaf: WorkspaceLeaf, private plugin: SourceWorkbench) { super(leaf); }
   getViewType() { return VIEW; } getDisplayText() { return WORKBENCH_NAME; } getIcon() { return WORKBENCH_ICON_ID; }
-  async onOpen() { this.contentEl.empty(); this.workbench = new Workbench(this.contentEl, this.plugin); await this.workbench.refresh();this.refreshTimer=window.setInterval(()=>{if(this.plugin.updateInProgress)return;void this.workbench?.refresh();void this.plugin.refreshSubscriptions();},20_000); }
+  async onOpen() { this.contentEl.empty(); this.workbench = new Workbench(this.contentEl, this.plugin); await this.workbench.refresh();this.refreshTimer=window.setInterval(()=>{void this.workbench?.refresh();void this.plugin.refreshSubscriptions();},20_000); }
   async onClose() { if(this.refreshTimer!==undefined)window.clearInterval(this.refreshTimer);this.workbench?.dispose(); }
 }
 class LinkModal extends Modal {
@@ -649,7 +579,7 @@ function pickFile(accept='.md,.html,.htm,.pdf,.srt,.vtt'): Promise<File | null> 
 }
 class ConnectionModal extends Modal {
   constructor(app:App,private plugin:SourceWorkbench,private section?:SettingsSection){super(app);}
-  onOpen(){this.modalEl.addClass('sw-settings-modal');new WorkbenchSettings(this.app,this.plugin).renderInto(this.contentEl,this.section,()=>this.close());}
+  onOpen(){this.modalEl.addClass('sw-settings-modal');new WorkbenchSettings(this.app,this.plugin).renderInto(this.contentEl,this.section);}
   onClose(){this.contentEl.empty();}
 }
 class SubscriptionsModal extends Modal {
@@ -926,7 +856,7 @@ class WorkbenchSettings extends PluginSettingTab {
   display() {
     this.renderInto(this.containerEl);
   }
-  renderInto(container:HTMLElement,selected?:SettingsSection,onUpdated?:()=>void) {
+  renderInto(container:HTMLElement,selected?:SettingsSection) {
     container.empty(); container.addClass('sw-settings-content'); container.createEl('h2', { text: `${WORKBENCH_NAME}设置` });
     container.createEl('p',{cls:'sw-muted',text:'按用途展开设置。修改先保留为草稿，点击底部保存后生效；关闭窗口放弃本次未保存修改。'});
     const group=(key:SettingsSection,name:string,description:string,open=false)=>{const section=container.createEl('details',{cls:'sw-settings-group'});section.open=selected?key===selected:open;section.dataset.section=key;section.createEl('summary',{text:name});section.createEl('p',{cls:'sw-muted',text:description});return section;};
@@ -935,17 +865,14 @@ class WorkbenchSettings extends PluginSettingTab {
     const daily=group('daily','今日阅读与短导读','可选功能。阅读预算只影响今日选读清单。');
     const exploration=group('exploration','兴趣与主动发现','寻找关注范围之外的内容，检索与AI筛选按已有配置调用。');
     const x=group('x','X账号与搜索','使用自己的账号或已配置渠道；搜索与发现共用每日推荐上限。');
-    const updates=group('updates','版本与更新','从本机维护者准备的新版更新；更新后自动重载，阅读材料和配置保留。');
+    const updates=group('updates','版本与更新','社区版通过 Obsidian 的官方渠道更新。');
     const claudian=group('claudian','Claudian 接续','Claudian 更新后，在这里重新验证接续接口。');
     const footer=container.createDiv({cls:'sw-settings-footer'});
     const draft={...this.plugin.settings};
     const claudianStatus=claudian.createEl('p',{attr:{role:'status','aria-label':'Claudian 验证结果'},text:this.plugin.claudianStatus});
     new Setting(claudian).setName('验证当前 Claudian').setDesc('检查会话、草稿保护和发送接口；通过后立即保存，无需点击底部保存配置。不会发送消息或调用模型。接口不兼容时显示具体原因。').addButton(button=>button.setButtonText('验证 Claudian 接续').onClick(async()=>{button.setDisabled(true);claudianStatus.setText('正在验证 Claudian 接续接口…');try{const message=await this.plugin.verifyClaudian();claudianStatus.setText(message);new Notice(message);}catch(error){const message=friendlyError(error);claudianStatus.setText(`验证未通过：${message}`);new Notice(message);}finally{button.setDisabled(false);}}));
     new Setting(daily).setName('历史精选每日上限').setDesc('1～5项，默认2项；从全历史未读材料中兼顾价值和轮换。当天清单保存后固定，修改次日生效；不新增模型调用。').addText(input => { input.inputEl.type='number'; input.inputEl.setAttribute('aria-label','历史精选每日上限'); input.setValue(String(draft.historyMaxItems)).onChange(value=>{draft.historyMaxItems=value.trim()?Number(value):NaN;}); });
-    let installButton:HTMLButtonElement|undefined;
-    const updateStatus=updates.createEl('p',{attr:{role:'status'},text:this.plugin.updateSummary});
-    new Setting(updates).setName(`当前版本 v${this.plugin.manifest.version}`).setDesc('进入工作台后会检查新版；发现新版后由你点击更新，不会自动替换程序。').addButton(button=>button.setButtonText('检查插件更新').onClick(async()=>{button.setDisabled(true);try{await this.plugin.checkPluginUpdates();updateStatus.textContent=this.plugin.updateSummary;}finally{button.setDisabled(false);if(installButton)installButton.disabled=!this.plugin.updateAvailable;}}));
-    new Setting(updates).setName('安装已准备的新版本').setDesc('更新前自动备份旧程序；未保存批注或进行中的材料/模型任务先完成。').addButton(button=>{installButton=button.buttonEl;button.setButtonText('一键更新插件').setCta().setDisabled(!this.plugin.updateAvailable).onClick(async()=>{button.setDisabled(true);try{const result=await this.plugin.installPluginUpdate(()=>{if(JSON.stringify(parseSettings(draft))!==JSON.stringify(this.plugin.settings))throw Error('设置有未保存的修改，请先保存或取消后再更新');});updateStatus.textContent=result;onUpdated?.();}catch(error){const message=friendlyError(error);updateStatus.textContent=message;new Notice(message);}finally{button.setDisabled(!this.plugin.updateAvailable);}});});
+    new Setting(updates).setName(`当前版本 v${this.plugin.manifest.version}`).setDesc('请在 Obsidian 的第三方插件页面检查和安装更新。');
     const issueRow=this.plugin.configurationIssue?storage.createEl('p',{text:this.plugin.configurationIssue,cls:'sw-gap'}):null;
     const pathRow=new Setting(storage).setName('阅读目录').setDesc('选择已有文件夹，或输入新的库内相对目录。保存前不创建文件夹；切换不移动旧材料。');
     storage.createEl('p',{cls:'sw-muted',text:`当前仓库：${this.app.vault.getName()}。这里选择库内目录，不填写磁盘绝对路径。令牌和 API Key 也保存在本仓库插件配置中；同步配置目录会同步这些值。`});

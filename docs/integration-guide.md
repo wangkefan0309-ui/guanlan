@@ -48,8 +48,6 @@ DeepSeek原生联网不通过`/search`：插件直接请求官方`https://api.de
 | GET `/v1/runtime/identity` | 无请求体 | `{ instance:"source-workbench-material-runtime", version, pid, stopEnabled }`，独立于账本加载 |
 | POST `/v1/runtime/stop` | `{}`，同一服务Bearer | CLI实例202接受正常关闭，等待采集回执落盘再释放锁；无关闭回调的嵌入实例404 |
 | GET `/v1/status` | 无请求体 | `version`、`mode: local-import/local-subscriptions`、`subscriptions: not-configured/configured`、`enabled`、`running`、`errors`；configured 表示至少一项启用，并非实采成功 |
-| GET `/v1/plugin-updates` | 无请求体，同一Bearer | `{ channel:"local", serviceVersion, header:{release,signature}或null }`，仅维护者固定公钥校验通过的包 |
-| GET `/v1/plugin-updates/package` | `version` 为检查时版本 | `{ header, files:[{name,base64}] }`，只含四程序文件；版本已变化或未准备返回409 |
 | POST `/v1/import` | 下表的格式字段与内容 | `{ material: ... }`；材料已经写入服务端账本，尚需插件保存进 Vault |
 | POST `/v1/transcript` | `{ url, topic? }`，YouTube或B站BV第一分P | `{ material }`；保留原字幕及缺口，客户端保存，服务feed不变 |
 | GET `/v1/feed` | `after` 为非负整数；`instance` 为上次服务实例标识 | `instance`、`cursor`、`items`、`hasMore` |
@@ -67,14 +65,6 @@ DeepSeek原生联网不通过`/search`：插件直接请求官方`https://api.de
 | POST `/v1/exploration/x/free/post` | `{ url, topic? }`，已采集公开帖文 | `{ material }`，仅缓存提取，不写订阅feed |
 | GET `/v1/exploration/x/status` | 无请求体，暂停的付费备选 | 本地SocialData月额度/预留状态，无外部请求 |
 | POST `/v1/exploration/x/search` | `{ key, topics }`，显式选择付费才调用 | 候选及xUsage；当前未真实付费验收 |
-
-## 插件更新读取
-
-更新元数据以 `src/core/plugin-update.ts` 为契约：schema=1、固定插件id、三段整数版本、ISO发布日期、最低后台版本、说明及四文件的SHA-256/大小。签名为固定公钥核验的Ed25519；下载再次核验内容及manifest，不传配置或签名私钥。服务仅从自身数据目录固定的 `plugin-updates/latest.json` 读取，包损坏报告失败，未发布返回header=null。维护和恢复见[插件内更新](plugin-updates.md)。
-
-`release.version`是插件版本，`release.minServiceVersion`是兼容下限，不要求与`serviceVersion`相同。2026-10-30的0.22.2通道要求最低后台0.22.2；历史0.22.1通道的下限为0.21.0。接入方读取当次签名声明并比较兼容下限。维护者纯插件发布命令见[更新流程](plugin-updates.md)。
-
-客户端先GET `/v1/plugin-updates`，有header且版本更新时，再GET `/v1/plugin-updates/package?version=<header.release.version>`。下载成功仍需客户端独立核验签名及字节，HTTP200不代表已安装。未授权401，版本变化或尚未准备409；包损坏按实际错误报告。两个接口只读取本机发布包，不采集来源、调用模型或写入Vault。
 
 ## 订阅配置与回执
 

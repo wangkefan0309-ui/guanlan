@@ -2,9 +2,9 @@
 
 在项目目录执行 npm ci，再运行 npm run dev:server。服务默认监听 127.0.0.1:27183，数据目录是 .local/server，首次启动生成 token.txt。SOURCE_HOST、SOURCE_PORT、SOURCE_DATA_DIR 可用于单独配置实例，SOURCE_TOKEN 可从进程环境提供令牌。将该实例地址和令牌填入插件设置。一个数据目录同一时刻只由一个服务进程写入。
 
-- 连接失败：用 GET /v1/health 检查服务；基础健康状态不需要令牌，诊断详情需要本机令牌。出现 401 时检查实例地址与令牌是否配对。
+- 连接失败：用携带材料服务令牌的 GET /v1/status 检查服务状态。出现 401 时检查实例地址与令牌是否配对。
 - 来源读取失败：看信源的回执。网络类失败按计划重试，修好地址或网络后可以用「立即检查更新」发起一轮。来源身份、上游限流、API 配额与正文缺口各有对应状态。
 - 升级：正常停服，再备份完整的数据目录，包括索引、逐条账本、原件与配置。另行备份阅读库。升级后核对健康状态、实际构建和 feed 增量。
 - 恢复：先在独立目录验证账本、原件哈希和同步，再切换到恢复目录。Vault 内的笔记、索引和阅读进度按同一时点恢复。
 
-[HTTP 契约](integration-guide.md) · [采集与同步](collection-setup.md) · [插件更新协议](plugin-updates.md) · [备份说明](backup-retention.md)
+[HTTP 契约](integration-guide.md) · [采集与同步](collection-setup.md) · [插件安装与更新](plugin-updates.md) · [备份说明](backup-retention.md)

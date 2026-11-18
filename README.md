@@ -7,7 +7,7 @@
 <p align="center">Bring the updates you follow, your reading picks, and your notes together in Obsidian. Work with your AI agent to turn what you learn into a personal knowledge base.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.5-31595b" alt="Version: v0.22.5">
+  <img src="https://img.shields.io/badge/version-v0.22.6-31595b" alt="Version: v0.22.6">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: Desktop ≥ 1.13">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: ≥ 22.13">
 </p>
@@ -19,6 +19,10 @@
 ---
 
 Guanlan is an Obsidian plugin that brings together updates from WeChat Official Accounts, YouTube, Bilibili, and other RSS feeds. Open one workbench to see what the creators you follow have published, pick a few things to read, or find something you saved earlier. If a piece is worth keeping, you can give the original to your AI agent to discuss or turn into a knowledge note.
+
+**Try it locally:** Open **藏卷 → 添加材料 → 导入文件** (Library → Add material → Import file) and choose a Markdown file. Reading, local Markdown or subtitle imports, and reading progress need no account, model, or material service. [What connects to the network, what is sent, and what may cost money](docs/data-and-network.md).
+
+**Optional connections:** The separately run service fetches the sites and feeds you configure. AI features use your configured provider (DeepSeek by default); search may also use Tavily or X. Some feeds, search and model services may require an account or payment. Local import reads the file you select, including files outside the Vault. Claudian handoff is optional and sends only the selected material and task context to Claudian.
 
 ## Why I built it
 
@@ -115,7 +119,7 @@ Queue a specific version and save the submission intent before sending. Discussi
 
 ### 06 · Recovery, updates, and backups
 
-Retry network failures according to type and recover model work from the first result. Back up before upgrades, verify signed updates, and rotate snapshots after archive read-back.
+Retry network failures according to type and recover model work from the first result. The Community directory delivers plugin updates; back up service data before upgrading the service separately.
 
 [![Recovery, updates, and backups](docs/workflow/public/en/recovery.svg)](docs/workflow/public/en/recovery.svg)
 
@@ -123,7 +127,7 @@ Retry network failures according to type and recover model work from the first r
 
 ## Quick start
 
-[**Download the v0.22.5 plugin**](https://github.com/wangkefan0309-ui/guanlan/releases/download/v0.22.5/source-workbench-0.22.5.zip) · You can also [build from source](#quick-start). The ZIP contains the plugin. Set up the collection service separately using the steps below.
+Once listed, look for **Guanlan** in Obsidian's Community plugins. For manual installation, see [GitHub Releases](https://github.com/wangkefan0309-ui/guanlan/releases) or build from source. Set up the material service separately when you want subscriptions or web imports.
 
 You need **Obsidian desktop 1.13.0 or later**. Building from source and running the material service require **Node.js 22.13 or later**. The examples use Windows, the environment verified for the login startup controller, the bundled RSSHub setup scripts, and free X setup.
 
@@ -134,7 +138,7 @@ You need **Obsidian desktop 1.13.0 or later**. Building from source and running 
    npm run build
    ```
 
-   Put the extracted `source-workbench` folder in your vault's `.obsidian/plugins/`. If you built from source, create the folder there and copy the four files from `dist/plugin/` into it: `manifest.json`, `main.js`, `styles.css`, and `AIHOT-MIT.txt`. Enable **观澜** under Obsidian's Community plugins.
+   Put the extracted `source-workbench` folder in your vault's `.obsidian/plugins/`. If you built from source, create the folder there and copy `manifest.json`, `main.js`, and `styles.css` from `dist/plugin/`. Enable **Guanlan** under Obsidian's Community plugins.
 
 2. Start the material service for subscriptions, webpage extraction, public captions, or external search. The plugin ZIP contains the plugin and its third-party notice. Start the service separately from source. Run `npm ci` first if you have yet to install dependencies.
 
@@ -195,7 +199,7 @@ These routes save **video entries** with titles, channels, publication dates, an
 - **X** participates in keyword discovery. The free route uses your own X account, a dedicated login window, and local `twscrape`. It checks at most three Top result pages per day, up to 20 posts each. A failed or uncertain request pauses the route for the day. SocialData is an optional paid route you can select. Saving a post captures its text and original response. Video captions and linked pages have their own collection steps. [X setup and login](docs/free-x-setup.md)
 - **Other sites** can be followed through RSS/Atom or saved from a supported public article URL. Discover also supports DeepSeek web search, public Hacker News/GitHub lookups, and Tavily. The public lookups need no search key and lean toward tech sources. AI selection still needs a configured model. [Discovery workflow](docs/active-exploration.md)
 
-The **material service process** needs a working network path to each provider. On the maintainer's tested Windows network, YouTube and X needed a working proxy. A standalone service can inherit `HTTPS_PROXY` at startup. The Windows controller can read the enabled local Windows system proxy. Check the service receipt even if the same site opens in your browser. Saved vault notes are available offline.
+The **material service process** needs a working network path to each provider. On the maintainer's tested Windows network, YouTube and X needed a working proxy. A standalone service can inherit `HTTPS_PROXY` at startup. Check the service receipt even if the same site opens in your browser. Saved vault notes are available offline.
 
 ## Interface guide
 
@@ -288,7 +292,7 @@ Captured HTML preserves the fetched response. Remote images in Markdown may stil
 | **兴趣与主动发现** (Discovery) | Toggle automatic discovery, choose among eight topic areas, and change the search provider, keywords, and preferences. The daily default is up to 3 recommendations, adjustable to 1–12. Automatic discovery starts off. |
 | **X账号与搜索** (X account and search) | Include or exclude X, and choose a free account connection or a paid provider. **连接X账号** opens a dedicated login window, and **检查X连接** shows connection state. |
 | **Claudian 接续** (Claudian handoff) | Verify the installed version. Choose discussion or direct Wiki handoff for each item. Switching to a different agent or Wiki layout calls for a source change to the bridge and storage contract. |
-| **版本与更新** (Updates) | Check for a signed package prepared by the local maintainer. Use **一键更新插件** to install it. A plain GitHub ZIP is for manual installation. The signed update channel needs separate setup. |
+| **版本与更新** (Updates) | See the installed version. Check for and install community releases from Obsidian's Community plugins settings. |
 
 Edits are a draft until you click **保存配置** (Save settings). Set categories per source in Sources. An agent can change the built-in category names, defaults, and scoring rules in source.
 
@@ -316,4 +320,4 @@ Run `npm run verify` for type checks, tests, and both builds. On Windows, `npm r
 
 Enter service tokens, private RSS URLs, model keys, Google keys, and X login information locally. Use a demo vault for screenshots or shared reproductions. Plugin settings, raw captures, runtime folders, and backups can hold private material. Configured search and model providers receive the queries and source excerpts required by the relevant feature.
 
-Some collection and discovery code and ideas came from [AIHOT](https://github.com/KKKKhazix/AIHOT) by Khazix (数字生命卡兹克). RSSHub is used for the optional Bilibili route. See [AIHOT reuse](docs/aihot-reuse.md) and the [third-party notices](THIRD_PARTY_NOTICES/). Those notices cover the respective third-party components. The maintainer still needs to choose a repository-wide license.
+Guanlan is distributed under the [MIT License](LICENSE). Some collection and discovery code and ideas came from [AIHOT](https://github.com/KKKKhazix/AIHOT) by Khazix (数字生命卡兹克). RSSHub is used for the optional Bilibili route. See [AIHOT reuse](docs/aihot-reuse.md) and the [third-party notices](THIRD_PARTY_NOTICES/) for the respective third-party terms.

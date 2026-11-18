@@ -13,8 +13,6 @@ export type SettingsSection = 'storage' | 'connection' | 'daily' | 'exploration'
 export interface WorkbenchHost {
   claudianReason?:string;
   configurationIssue?:string;
-  updateSummary?:string;
-  updateAvailable?:boolean;
   handoffExploration?(item:ExplorationRecommendation,mode?:KnowledgeMode):Promise<string>;
   handoffKnowledge?(item:ReadingItem,library:ReadingLibrary,mode?:KnowledgeMode):Promise<string>;
   knowledgeStatuses?(items:ReadingItem[],library:ReadingLibrary):Promise<Map<string,KnowledgeStatus>>;
