@@ -18,7 +18,7 @@
 
 ---
 
-Guanlan is an Obsidian plugin that brings together updates from WeChat Official Accounts, YouTube, Bilibili, and other RSS feeds. Open one workbench to see what the creators you follow have published, pick a few things to read, or find something you saved earlier. If a piece is worth keeping, you can give the original to your AI agent to discuss or turn into a knowledge note.
+Guanlan is an Obsidian plugin that brings together updates from WeChat Official Accounts, YouTube, Bilibili, and other RSS feeds. Open one workbench to see what the creators you follow have published, pick a few things to read, or find something you saved earlier. **When you finish reading, send the article straight to your AI agent in Obsidian with the one-click Claudian handoff.**
 
 **Try it locally:** Open **藏卷 → 添加材料 → 导入文件** (Library → Add material → Import file) and choose a Markdown file. Reading, local Markdown or subtitle imports, and reading progress need no account, model, or material service. [What connects to the network, what is sent, and what may cost money](docs/data-and-network.md).
 
@@ -51,6 +51,10 @@ A blank list could mean an author published nothing. It could also mean the feed
 A book, a saved article, and a recommendation blurb give me different evidence to work with. I want the original capture, my annotations, and what the AI wrote to remain traceable. Guanlan saves originals, reading note versions, and short guides separately. When I want a knowledge note, I choose a specific version and send it to Claudian for discussion or direct synthesis. Knowledge Handoff shows progress against receipts and actual files, so I can find out where a note came from later.
 
 These choices grew out of my own reading habits. Start with one RSS feed and one reading folder if that's all you need. Tell your agent what you'd like to change, from sources and categories to your reading budget, interests, model, or knowledge workflow.
+
+**06 / Hand an article to your AI agent in one click**
+
+A manual handoff usually means dragging the material into your vault, opening an agent like Claude Code or Codex, and telling it where the file is and what to do. With a compatible version of Claudian enabled, click **交给 Claudian 处理** (Send to Claudian) in Guanlan. It opens the article’s Claudian conversation and sends a prepared prompt with links to the original and your reading note. You can return to the same conversation later to pick up where you left off.
 
 ## Complete workflow
 
@@ -109,7 +113,7 @@ One index supports the daily shortlist, older unread rotation, and material mana
 
 ### 05 · Claudian, RAW, and Wiki handoff
 
-Queue a specific version and save the submission intent before sending. Discussion and direct synthesis both verify the original, the run receipt, and Wiki files.
+Queue a specific version and save the submission intent before sending. Discussion and direct synthesis both verify the original, the run receipt, and Wiki files. I use Andrej Karpathy’s LLM Wiki approach to organize the knowledge base. [Original LLM Wiki write-up](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 
 [![Claudian, RAW, and Wiki handoff](docs/workflow/public/en/knowledge.svg)](docs/workflow/public/en/knowledge.svg)
 
@@ -154,7 +158,7 @@ You need **Obsidian desktop 1.13.0 or later**. Building from source and running 
 
 In Add source, click **识别来源** (Identify source), confirm the account or channel, and choose its name, category, and automatic check setting. Click **添加订阅** (Add subscription) to save. An aggregated feed can be added as a general feed. Use an individual account URL to track one WeChat account.
 
-For a background service after Windows login, see [Windows Task Scheduler setup](docs/local-automation.md). For optional Bilibili feeds and service options, see [RSSHub setup](docs/rsshub-runtime.md) and the [service runbook](docs/operator-runbook.md).
+On Windows, you can start the service manually to try it out and configure it to run in the background when you sign in. For Bilibili feeds through RSSHub, follow the RSSHub setup guide to install its dependencies. If you run a manual instance alongside the background instance, give each its own service address and data directory. [RSSHub setup](docs/rsshub-runtime.md) · [Windows background collection](docs/local-automation.md) · [Service configuration](docs/operator-runbook.md)
 
 ## How each platform is connected
 
@@ -267,7 +271,7 @@ Captured HTML preserves the fetched response. Remote images in Markdown may stil
 
 - **交给 Claudian 处理 / 继续 Claudian 讨论** hands the selected material to a verified Claudian installation and reopens the same conversation later. **直接写入 Wiki** passes the source for direct synthesis. Both routes can also be chosen during import and from a discovery card.
 - **取消待处理** cancels a queued item before submission. **打开接续笔记**, **打开讨论记录**, **查看来源与覆盖**, **阅读 Wiki**, and **查看晋升结果** open the corresponding records and files when available. **从回执恢复** is for a conversation that cannot be reopened. The first recovery round reads the existing work. **准备 RAW 交接材料** prepares a manual handoff.
-- In the maintainer's vault, `08_LLM Wiki` holds RAW originals, topic notes, source records, and receipts. Promotion to a personal note or board (fanOS) needs a specified destination and separate authorization. These paths and checks are tied to the maintainer's workflow. Other vaults can use the library or a manual handoff and adapt the bridge if needed.
+- In the maintainer's vault, `08_LLM Wiki` holds RAW originals, topic notes, source records, and receipts. Promotion to a personal note or board needs a specified destination and separate authorization. These paths and checks are tied to the maintainer's workflow. Other vaults can use the library or a manual handoff and adapt the bridge if needed.
 - Use **设置 → Claudian 接续** to verify the installed version. That check proves interface compatibility. Look at the corresponding state and files to confirm RAW registration, Wiki completion, or promotion. [Knowledge handoff and recovery](docs/knowledge-integration.md)
 
 ### 信源 · Sources
