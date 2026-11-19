@@ -1,3 +1,4 @@
+import { asList, asText, field } from '../core/structured';
 import { ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, TFile, TFolder, requestUrl, normalizePath, addIcon } from 'obsidian';
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { ReadingLibrary } from '../core/library';
@@ -293,11 +294,11 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
     void this.refreshXStatus();
     this.addRibbonIcon(WORKBENCH_ICON_ID, WORKBENCH_NAME, () => void this.activate());
     this.addCommand({ id: 'open', name: `打开${WORKBENCH_NAME}`, callback: () => void this.activate() });
-    this.addCommand({ id: 'import-url', name: '导入阅读链接', callback: () => void this.importUrl().catch(error => new Notice(error.message)) });
-    this.addCommand({ id: 'sync', name: '同步阅读材料', callback: () => void this.sync().then(message => { this.refresh(); new Notice(message); }).catch(error => new Notice(error.message)) });
-    this.addCommand({ id: 'daily-note', name: '生成今日阅读笔记', callback: () => void this.saveDaily().catch(error => new Notice(error.message)) });
-    this.addCommand({ id: 'daily-ai', name: '生成 AI 精选与导读', callback: () => void this.reviewDaily().then(message => { this.refresh(); new Notice(message); }).catch(error => new Notice(error.message)) });
-    this.addCommand({ id: 'explore', name: '探索优质新内容', callback: () => void this.exploreNow().then(message => new Notice(message)).catch(error => new Notice(error.message)) });
+    this.addCommand({ id: 'import-url', name: '导入阅读链接', callback: () => void this.importUrl().catch(error => new Notice(friendlyError(error))) });
+    this.addCommand({ id: 'sync', name: '同步阅读材料', callback: () => void this.sync().then(message => { this.refresh(); new Notice(message); }).catch(error => new Notice(friendlyError(error))) });
+    this.addCommand({ id: 'daily-note', name: '生成今日阅读笔记', callback: () => void this.saveDaily().catch(error => new Notice(friendlyError(error))) });
+    this.addCommand({ id: 'daily-ai', name: '生成 AI 精选与导读', callback: () => void this.reviewDaily().then(message => { this.refresh(); new Notice(message); }).catch(error => new Notice(friendlyError(error))) });
+    this.addCommand({ id: 'explore', name: '探索优质新内容', callback: () => void this.exploreNow().then(message => new Notice(message)).catch(error => new Notice(friendlyError(error))) });
     this.addSettingTab(new WorkbenchSettings(this.app, this));
     this.autoSyncScheduler = new AutoSync(() => {
       const settings = { ...this.settings }; const library = this.library;
@@ -400,9 +401,9 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
   async service(path: string, body?: unknown, settings = { ...this.settings }): Promise<unknown> {
     if (!settings.serviceToken) throw new Error('请先在设置中填写材料服务令牌');
     const response = await withTimeout(requestUrl({ url: `${apiBase(settings.serviceUrl)}${path}`, method: body === undefined ? 'GET' : 'POST', headers: { Authorization: `Bearer ${settings.serviceToken}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), throw: false }),path === '/v1/exploration/x/free/search' ? 205_000 : path === '/v1/exploration/x/search' ? 110_000 : path === '/v1/exploration/search' ? 90_000 : 45_000,path.startsWith('/v1/exploration/') ? '材料服务响应超时；探索调用结果未知，当日不自动重发' : '材料服务响应超时');
-    let json; try { json=JSON.parse(response.text); } catch { throw new Error(`服务返回 HTTP ${response.status}，响应不是有效 JSON`); }
+    let json: unknown; try { json=JSON.parse(response.text); } catch { throw new Error(`服务返回 HTTP ${response.status}，响应不是有效 JSON`); }
     if(path==='/v1/transcript'&&response.status===404)throw new Error('当前材料服务没有文字稿接口；请升级到 v0.13.0，或直接导入 SRT/VTT/Markdown 文件');
-    if (response.status !== 200) throw new Error(json?.error || `服务返回 HTTP ${response.status}`); return json;
+    if (response.status !== 200) throw new Error(asText(field(json, 'error')) || `服务返回 HTTP ${response.status}`); return json;
   }
   sync(): Promise<string> {
     return this.syncFor(this.library, { ...this.settings }, false);
@@ -499,12 +500,15 @@ export default class SourceWorkbench extends Plugin implements WorkbenchHost {
   async answerReview(messages: ChatMessage[], settings: Settings, maximumTokens=8000): Promise<ReviewResponse> {
     const response = await withTimeout(requestUrl({ url: `${apiBase(settings.guideUrl)}/chat/completions`, method: 'POST', headers: { Authorization: `Bearer ${settings.guideKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: settings.guideModel, messages, stream: false, max_tokens: maximumTokens, temperature: 0.2, response_format: { type: 'json_object' }, ...(new URL(settings.guideUrl).origin === 'https://api.deepseek.com' ? { thinking: { type: 'disabled' } } : {}) }), throw: false }), 60_000, '轻处理模型响应超时，调用结果未知且可能已计费；本批不会重复发送，请核对提供方记录');
     if (response.status !== 200) throw new Error(`轻处理模型返回 HTTP ${response.status}；本批不会自动重发，请检查配置和提供方记录`);
-    let result; try { result = JSON.parse(response.text); } catch { throw new Error('轻处理模型响应不是有效 JSON；本批不会自动重发'); }
-    if (result?.choices?.[0]?.finish_reason && result.choices[0].finish_reason !== 'stop') throw new Error('轻处理模型生成被截断或中断；本批不会自动重发，请核对提供方记录');
-    const content = result?.choices?.[0]?.message?.content;
+    let result: unknown; try { result = JSON.parse(response.text); } catch { throw new Error('轻处理模型响应不是有效 JSON；本批不会自动重发'); }
+    const choice = asList(field(result, 'choices'))[0];
+    const finishReason = field(choice, 'finish_reason');
+    if (finishReason && finishReason !== 'stop') throw new Error('轻处理模型生成被截断或中断；本批不会自动重发，请核对提供方记录');
+    const content = field(choice, 'message', 'content');
     if (typeof content !== 'string' || !content.trim()) throw new Error('轻处理模型没有返回有效导读');
-    const input = result?.usage?.prompt_tokens, output = result?.usage?.completion_tokens;
-    const usage = Number.isInteger(input) && input >= 0 && Number.isInteger(output) && output >= 0 ? { inputTokens: input, outputTokens: output } : undefined;
+    const input = field(result, 'usage', 'prompt_tokens');
+    const output = field(result, 'usage', 'completion_tokens');
+    const usage = typeof input === 'number' && Number.isInteger(input) && input >= 0 && typeof output === 'number' && Number.isInteger(output) && output >= 0 ? { inputTokens: input, outputTokens: output } : undefined;
     return { content, usage };
   }
   async importUrl() {

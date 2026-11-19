@@ -3,6 +3,7 @@ import { hash, canonicalIdentity, webUrl } from './model';
 import { beijingDate } from './daily';
 import { searchResultSchema, type ExplorationCandidate, type ExplorationSearchResult } from './exploration';
 import { discoveryTopicIds, discoveryTopicsSchema, topicName, type DiscoveryTopic } from './discovery-topics';
+import { asList, asRecord } from './structured';
 
 export function deepseekSearchRequest(queries: string[], goals: string, model: string, now=new Date(), topics:DiscoveryTopic[]=[...discoveryTopicIds]) {
   const enabled=discoveryTopicsSchema.parse(topics);
@@ -19,10 +20,10 @@ export function deepseekSearchRequest(queries: string[], goals: string, model: s
   };
 }
 const responseSchema=z.object({
-  content:z.array(z.object({type:z.string()}).passthrough()).max(200),
-  usage:z.object({input_tokens:z.number().int().nonnegative(),output_tokens:z.number().int().nonnegative(),server_tool_use:z.object({web_search_requests:z.number().int().nonnegative()}).optional()}).passthrough().optional(),
+  content:z.array(z.object({type:z.string()}).loose()).max(200),
+  usage:z.object({input_tokens:z.number().int().nonnegative(),output_tokens:z.number().int().nonnegative(),server_tool_use:z.object({web_search_requests:z.number().int().nonnegative()}).optional()}).loose().optional(),
   stop_reason:z.string().optional(),
-}).passthrough();
+}).loose();
 function safeUrl(value: string): string | null {
   try{const url=new URL(webUrl.parse(value));if(!/[a-z]/i.test(url.hostname)||!url.hostname.includes('.')||url.hostname.endsWith('.local')||url.hostname.endsWith('.internal')||(url.port&&!['80','443'].includes(url.port)))return null;return canonicalIdentity(url.toString());}catch{return null;}
 }
@@ -33,18 +34,18 @@ export async function parseDeepseekSearch(raw: string, queries: string[], maximu
   const response=responseSchema.parse(JSON.parse(raw));const sources=new Map<string,{title:string;query:string;snippets:string[]}>();const toolQueries=new Map<string,string>();
   let toolCalls=0;const warnings:string[]=[];
   for(const block of response.content){if(block.type==='server_tool_use'&&block.name==='web_search'&&typeof block.id==='string'){
-    toolCalls++;const input=block.input as {query?:unknown}|undefined;toolQueries.set(block.id,typeof input?.query==='string'?input.query.slice(0,240):queries.join('；').slice(0,240));
+    toolCalls++;const input=asRecord(block.input);toolQueries.set(block.id,typeof input?.query==='string'?input.query.slice(0,240):queries.join('；').slice(0,240));
   }}
   for(const block of response.content){if(block.type!=='web_search_tool_result')continue;
     if(!Array.isArray(block.content)){warnings.push('一次联网检索未返回可用结果，保留原回执');continue;}
-    for(const item of block.content){if(item?.type!=='web_search_result'||typeof item.url!=='string'||typeof item.title!=='string')continue;
+    for(const value of asList(block.content)){const item=asRecord(value);if(item?.type!=='web_search_result'||typeof item.url!=='string'||typeof item.title!=='string')continue;
       const url=safeUrl(item.url);if(!url)continue;
       const current:{title:string;query:string;snippets:string[]}=sources.get(url)??{title:item.title.slice(0,240),query:toolQueries.get(String(block.tool_use_id))??queries.join('；').slice(0,240),snippets:[]};
       const snippet=[item.snippet,item.description].find(value=>typeof value==='string');if(typeof snippet==='string')current.snippets.push(snippet.slice(0,2400));sources.set(url,current);
     }
   }
   for(const block of response.content){if(block.type!=='text'||!Array.isArray(block.citations))continue;
-    for(const citation of block.citations){if(citation?.type!=='web_search_result_location'||typeof citation.url!=='string'||typeof citation.cited_text!=='string')continue;
+    for(const value of asList(block.citations)){const citation=asRecord(value);if(citation?.type!=='web_search_result_location'||typeof citation.url!=='string'||typeof citation.cited_text!=='string')continue;
       const url=safeUrl(citation.url);const source=url&&sources.get(url);if(source&&citation.cited_text.trim()&&!source.snippets.includes(citation.cited_text))source.snippets.push(citation.cited_text.slice(0,2400));
     }
   }

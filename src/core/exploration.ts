@@ -24,7 +24,7 @@ export const candidateSchema = z.object({
   evidenceUrl: webUrl.optional(),
   media: z.object({ kind: z.literal('video'), durationSeconds: z.number().int().positive().max(604800).optional() }).strict().optional(),
   contentLinks: z.array(z.object({ url: webUrl, label: z.string().max(80), kind: z.enum(['article', 'video']) }).strict()).max(4).optional(),
-  engagement: z.object({ likes: z.number().int().nonnegative(), reposts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), views: z.number().int().nonnegative().optional(), observedAt: z.string().datetime() }).strict().optional(),
+  engagement: z.object({ likes: z.number().int().nonnegative(), reposts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), views: z.number().int().nonnegative().optional(), observedAt: z.iso.datetime() }).strict().optional(),
   linkedEvidence: z.object({ url: webUrl, excerpt: z.string().min(40).max(1600) }).strict().optional(),
 }).strict();
 export type ExplorationCandidate = z.infer<typeof candidateSchema>;
@@ -51,7 +51,7 @@ const entrySchema = z.object({
 }).strict();
 export type ExplorationEntry = z.infer<typeof entrySchema>;
 const runSchema = z.object({
-  id: z.string().regex(/^[a-f0-9]{64}$/), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), createdAt: z.string().datetime(),
+  id: z.string().regex(/^[a-f0-9]{64}$/), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), createdAt: z.iso.datetime(),
   provider: z.enum(explorationProviders), queries: z.array(z.string().max(240)).max(2),
   goals: z.string().max(2000), model: z.string().max(240), endpoint: z.string().max(4096),
   promptVersion: z.enum(['exploration-1','exploration-2','exploration-3','exploration-4','exploration-5','exploration-6','exploration-7','exploration-8']), status: z.enum(['started', 'completed', 'failed']),

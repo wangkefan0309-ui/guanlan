@@ -22,17 +22,17 @@ const receiptSchema = z.object({
   seen: z.record(z.string().regex(/^[a-f0-9]{64}$/), z.string().regex(/^[a-f0-9]{64}$/)),
   etag: z.string().nullable(), lastModified: z.string().nullable(), responseUrl: z.string().nullable(),
   lastAttempt: z.string().nullable(), lastSuccess: z.string().nullable(), nextDue: z.string().nullable(),
-  lastFullCheck: z.string().datetime().nullable().default(null),
+  lastFullCheck: z.iso.datetime().nullable().default(null),
   catchupImported: z.number().int().nonnegative().default(0),
   error: z.string(), imported: z.number().int().nonnegative(), pending: z.number().int().nonnegative(), failures: z.number().int().nonnegative(),
   recentChecks: z.array(subscriptionCheckSchema).max(12).default([]),
   lastFailure: subscriptionCheckSchema.optional(),
   collectionMethod: z.enum(['feed', 'direct-api', 'browser', 'public-page']).optional(),
   daily: dailyCollectionSchema.optional(),
-  publicationDates: z.record(z.string(), z.string().datetime().nullable()).default({}),
+  publicationDates: z.record(z.string(), z.iso.datetime().nullable()).default({}),
   publicationAttempts: z.record(z.string(),z.number().int().nonnegative()).default({}),
 }).strict();
-const stateSchema = z.object({ schema: z.literal(1), revision: z.string().uuid(), ledgerInstance: z.string().nullable().default(null), sources: z.array(receiptSchema).min(1).max(100), categories: categoriesSchema.default(defaultCategories), collectionScope: collectionScopeSchema.default('feed-window'), collectionStartedAt: z.string().datetime().optional(), catchupDays: catchupDaysSchema.default(0) }).strict();
+const stateSchema = z.object({ schema: z.literal(1), revision: z.uuid(), ledgerInstance: z.string().nullable().default(null), sources: z.array(receiptSchema).min(1).max(100), categories: categoriesSchema.default(defaultCategories), collectionScope: collectionScopeSchema.default('feed-window'), collectionStartedAt: z.iso.datetime().optional(), catchupDays: catchupDaysSchema.default(0) }).strict();
 type State = z.infer<typeof stateSchema>;
 type Receipt = z.infer<typeof receiptSchema>;
 interface Dependencies {

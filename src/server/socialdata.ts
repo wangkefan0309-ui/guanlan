@@ -13,7 +13,7 @@ const STATE = 'socialdata/state.json';
 const requestSchema = z.object({
   id: z.string().regex(/^[a-f0-9]{64}$/), query: z.string().max(512),
   status: z.enum(['started', 'ok', 'rejected', 'unknown']), returned: z.number().int().nonnegative().optional(),
-  journalHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), httpStatus: z.number().int().optional(), observedAt: z.string().datetime().optional(),
+  journalHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), httpStatus: z.number().int().optional(), observedAt: z.iso.datetime().optional(),
 }).strict();
 const batchSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), status: z.enum(['started', 'completed']),
@@ -40,8 +40,8 @@ export const tweetSchema = z.object({
   user: z.object({ screen_name: z.string().regex(/^[A-Za-z0-9_]{1,30}$/) }),
   favorite_count: observedCount, retweet_count: observedCount,
   reply_count: observedCount, views_count: observedCount,
-  entities: z.object({ urls: z.array(z.object({ expanded_url: z.string().optional() }).passthrough()).max(100).optional() }).passthrough().optional(),
-}).passthrough();
+  entities: z.object({ urls: z.array(z.object({ expanded_url: z.string().optional() }).loose()).max(100).optional() }).loose().optional(),
+}).loose();
 
 export async function tweetCandidates(json: string, query: string, observedAt: string): Promise<ExplorationCandidate[]> {
   const payload = z.object({ tweets: z.array(z.unknown()), raw: z.unknown().optional() }).parse(JSON.parse(json));
@@ -141,7 +141,7 @@ export class SocialDataDiscovery {
         let json: string;
         try {
           if (response.text.length > 2_000_000) throw new Error('响应过大');
-          const payload = z.object({ tweets: z.array(z.unknown()) }).passthrough().parse(JSON.parse(response.text));
+          const payload = z.object({ tweets: z.array(z.unknown()) }).loose().parse(JSON.parse(response.text));
           // Provider-supplied text must not cause a configured secret to be archived.
           json = JSON.stringify(payload); if (json.includes(captured.key)) throw new Error('响应包含凭证');
           request.returned = payload.tweets.length; request.status='ok'; request.journalHash=await hash(json); request.observedAt=this.now().toISOString();

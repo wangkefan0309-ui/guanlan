@@ -29,7 +29,7 @@ export const subscriptionConfigSchema = z.object({
 });
 export type SubscriptionConfig = z.infer<typeof subscriptionConfigSchema>;
 export const subscriptionUpdateSchema = z.object({
-  revision: z.string().uuid(),
+  revision: z.uuid(),
   sources: z.array(subscriptionConfigSchema).min(1).max(100),
   categories: categoriesSchema.optional(),
   collectionScope: collectionScopeSchema.optional(),
@@ -41,10 +41,10 @@ export const subscriptionUpdateSchema = z.object({
   if (value.categories && value.sources.some(source => source.categoryId && !value.categories!.some(category => category.id === source.categoryId && category.topic === source.topic))) context.addIssue({ code: 'custom', message: '来源分类不存在；使用中的分类请先移动来源再删除' });
 });
 export const subscriptionsViewSchema = z.object({
-  revision: z.string().uuid(),
+  revision: z.uuid(),
   running: z.boolean(),
   collectionScope: collectionScopeSchema.optional(),
-  collectionStartedAt: z.string().datetime().optional(),
+  collectionStartedAt: z.iso.datetime().optional(),
   catchupDays: catchupDaysSchema.optional(),
   categories: categoriesSchema.default(defaultCategories),
   sources: z.array(z.object({
@@ -62,7 +62,7 @@ export const subscriptionsViewSchema = z.object({
     pending: z.number().int().nonnegative(),
     collectionMethod: z.enum(['feed', 'direct-api', 'browser', 'public-page']).optional(),
     daily: dailyCollectionSchema.optional(),
-    publicationDates: z.record(webUrl, z.string().datetime().nullable()).optional(),
+    publicationDates: z.record(webUrl, z.iso.datetime().nullable()).optional(),
   })).min(1).max(100),
 }).strict();
 export type SubscriptionsView = z.infer<typeof subscriptionsViewSchema>;

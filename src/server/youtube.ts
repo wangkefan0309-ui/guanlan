@@ -3,11 +3,12 @@ import {fetchPublicHtml} from './public-fetch';
 import type {FeedResponse} from './feed-fetch';
 import type {CollectionScope} from '../core/subscriptions';
 import {beijingDate} from '../core/daily';
+import { asList, asRecord, asText, field } from '../core/structured';
 
 type Reader=(url:string,signal?:AbortSignal)=>Promise<string>;
 interface Dependencies {readPage?:Reader;now?:()=>Date}
 const channelPattern=/^UC[\w-]{22}$/,videoPattern=/^[\w-]{11}$/;
-function embedded(html:string,name:string):any{
+function embedded(html:string,name:string):unknown{
  const marker=new RegExp(`(?:var\\s+${name}|window\\["${name}"\\])\\s*=\\s*`).exec(html);
  if(!marker)throw Error('YouTube 公开页未提供可核验数据，可能需要登录或页面结构变化');
  const start=html.indexOf('{',marker.index+marker[0].length);let depth=0,quoted=false,escaped=false;
@@ -19,19 +20,60 @@ function older(label:string):boolean{
  const match=label.match(/\b(\d+)\s*(days?|d|weeks?|w|months?|mo|years?|y)\s+ago\b/i);
  return !!match&&(Number(match[1])>=2||(!/^d(?:ays?)?$/i.test(match[2]!)&&Number(match[1])>=1));
 }
-function candidates(data:any):{id:string;label:string}[]{
- const tab=data.contents?.twoColumnBrowseResultsRenderer?.tabs?.find((t:any)=>t.tabRenderer?.selected)?.tabRenderer;
- const grid=tab?.content?.richGridRenderer??tab?.content?.sectionListRenderer;
- if(!grid||!Array.isArray(grid.contents))throw Error('YouTube 频道视频列表结构无法核验');
+function channelTabs(data: unknown) {
+  return asList(field(data, 'contents', 'twoColumnBrowseResultsRenderer', 'tabs'))
+    .map(tab => asRecord(field(tab, 'tabRenderer')));
+}
+function candidates(data:unknown):{id:string;label:string}[]{
+ const tab=channelTabs(data).find(tab=>tab?.selected === true);
+ const grid=field(tab, 'content', 'richGridRenderer') ?? field(tab, 'content', 'sectionListRenderer');
+ if(!Array.isArray(field(grid, 'contents')))throw Error('YouTube 频道视频列表结构无法核验');
  const result:{id:string;label:string}[]=[];
- const walk=(node:any)=>{
-  if(!node||typeof node!=='object')return;
-  if(node.lockupViewModel){const v=node.lockupViewModel;if(v.contentType!=='LOCKUP_CONTENT_TYPE_VIDEO'||!videoPattern.test(v.contentId??''))throw Error('YouTube 视频列表身份无效');const parts=v.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.flatMap((r:any)=>r.metadataParts??[])??[];result.push({id:v.contentId,label:parts.map((p:any)=>p.text?.content??'').join(' ')});return;}
-  if(node.videoRenderer){const v=node.videoRenderer;if(!videoPattern.test(v.videoId??''))throw Error('YouTube 视频编号无效');result.push({id:v.videoId,label:v.publishedTimeText?.simpleText??v.publishedTimeText?.runs?.map((r:any)=>r.text).join('')??''});return;}
-  if(node.shortsLockupViewModel){const v=node.shortsLockupViewModel;const id=v.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId??v.entityId?.match(/(?:^|-)([\w-]{11})$/)?.[1];if(!videoPattern.test(id??''))throw Error('YouTube Shorts 视频编号无法核验');result.push({id,label:''});return;}
-  if(node.reelItemRenderer){const id=node.reelItemRenderer.videoId;if(!videoPattern.test(id??''))throw Error('YouTube Shorts 视频编号无效');result.push({id,label:''});return;}
-  if(node.richItemRenderer){const content=node.richItemRenderer.content;if(!content||!['lockupViewModel','videoRenderer','shortsLockupViewModel','reelItemRenderer'].some(key=>content[key]))throw Error('YouTube 视频列表出现未知布局');}
-  for(const value of Object.values(node))walk(value);
+ const walk=(value:unknown)=>{
+  if (Array.isArray(value)) {
+    for (const child of asList(value)) walk(child);
+    return;
+  }
+  const node = asRecord(value);
+  if (!node) return;
+  if (node.lockupViewModel) {
+    const video = node.lockupViewModel;
+    const id = asText(field(video, 'contentId'));
+    if (field(video, 'contentType') !== 'LOCKUP_CONTENT_TYPE_VIDEO' || !id || !videoPattern.test(id)) throw Error('YouTube 视频列表身份无效');
+    const rows = asList(field(video, 'metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows'));
+    const parts = rows.flatMap(row => asList(field(row, 'metadataParts')));
+    result.push({ id, label: parts.map(part => asText(field(part, 'text', 'content')) ?? '').join(' ') });
+    return;
+  }
+  if (node.videoRenderer) {
+    const id = asText(field(node.videoRenderer, 'videoId'));
+    if (!id || !videoPattern.test(id)) throw Error('YouTube 视频编号无效');
+    const time = field(node.videoRenderer, 'publishedTimeText');
+    const label = asText(field(time, 'simpleText')) ?? asList(field(time, 'runs')).map(run => asText(field(run, 'text')) ?? '').join('');
+    result.push({ id, label });
+    return;
+  }
+  if (node.shortsLockupViewModel) {
+    const video = node.shortsLockupViewModel;
+    const id = asText(field(video, 'onTap', 'innertubeCommand', 'reelWatchEndpoint', 'videoId')) ??
+      asText(field(video, 'entityId'))?.match(/(?:^|-)([\w-]{11})$/)?.[1];
+    if (!id || !videoPattern.test(id)) throw Error('YouTube Shorts 视频编号无法核验');
+    result.push({ id, label: '' });
+    return;
+  }
+  if (node.reelItemRenderer) {
+    const id = asText(field(node.reelItemRenderer, 'videoId'));
+    if (!id || !videoPattern.test(id)) throw Error('YouTube Shorts 视频编号无效');
+    result.push({ id, label: '' });
+    return;
+  }
+  if (node.richItemRenderer) {
+    const content = asRecord(field(node.richItemRenderer, 'content'));
+    if (!content || !['lockupViewModel', 'videoRenderer', 'shortsLockupViewModel', 'reelItemRenderer'].some(key => content[key])) {
+      throw Error('YouTube 视频列表出现未知布局');
+    }
+  }
+  for(const child of Object.values(node))walk(child);
  };
  walk(grid);return [...new Map(result.map(v=>[v.id,v])).values()].slice(0,15);
 }
@@ -48,25 +90,29 @@ export async function fetchYoutubePageFeed(channelId:string,signal?:AbortSignal,
     if(attempt>=1||!retryable)throw error;await new Promise(r=>setTimeout(r,500));signal?.throwIfAborted();}
   }
  };
- const channelPage=async(url:string)=>{const {data}=await pageData(url,'ytInitialData');if(data.metadata?.channelMetadataRenderer?.externalId!==channelId)throw Error('YouTube 频道身份不匹配');return data;};
- const base=`https://www.youtube.com/channel/${channelId}`,pages:any[]=[];
+ const channelPage=async(url:string)=>{const {data}=await pageData(url,'ytInitialData');if(field(data,'metadata','channelMetadataRenderer','externalId')!==channelId)throw Error('YouTube 频道身份不匹配');return data;};
+ const base=`https://www.youtube.com/channel/${channelId}`,pages:unknown[]=[];
  const data=await channelPage(`${base}/videos?hl=en`);
- const name=z.string().trim().min(1).max(160).parse(data.metadata?.channelMetadataRenderer?.title);
- pages.push(data);const tabs=data.contents?.twoColumnBrowseResultsRenderer?.tabs??[];
- const paths=['shorts','streams'].filter(path=>tabs.some((t:any)=>t.tabRenderer?.endpoint?.commandMetadata?.webCommandMetadata?.url?.replace(/\?.*$/,'').endsWith(`/${path}`)));
+ const name=z.string().trim().min(1).max(160).parse(field(data,'metadata','channelMetadataRenderer','title'));
+ pages.push(data);const tabs=channelTabs(data);
+ const paths=['shorts','streams'].filter(path=>tabs.some(tab=>asText(field(tab,'endpoint','commandMetadata','webCommandMetadata','url'))?.replace(/\?.*$/,'').endsWith(`/${path}`)));
  await Promise.all(paths.map(async path=>{pages.push(await channelPage(`${base}/${path}?hl=en`));}));
  const listed=[...new Map(pages.flatMap(candidates).map(v=>[v.id,v])).values()];
  const selected=scope==='today'?listed.filter(v=>!older(v.label)):listed;
- const videos:any[]=[],inspected:any[]=[];let next=0;
+ const videos:{id:string;title:string;publishedAt:string}[]=[];
+ const inspected:{videoId:string;player:unknown;watch?:unknown}[]=[];let next=0;
  await Promise.all(Array.from({length:Math.min(3,selected.length)},async()=>{
   while(next<selected.length){signal?.throwIfAborted();const item=selected[next++]!,url=`https://www.youtube.com/watch?v=${item.id}&hl=en`;
-   const {html,data:player}=await pageData(url,'ytInitialPlayerResponse'),details=player.videoDetails,meta=player.microformat?.playerMicroformatRenderer;
+   const {html,data:player}=await pageData(url,'ytInitialPlayerResponse');
+   const details=asRecord(field(player,'videoDetails')), meta=asRecord(field(player,'microformat','playerMicroformatRenderer'));
    if(!details){
-    const info=embedded(html,'ytInitialData'),rows=info.contents?.twoColumnWatchNextResults?.results?.results?.contents??[];
-    const owner=rows.find((r:any)=>r.videoSecondaryInfoRenderer)?.videoSecondaryInfoRenderer?.owner?.videoOwnerRenderer?.navigationEndpoint?.browseEndpoint?.browseId;
-    if(info.currentVideoEndpoint?.watchEndpoint?.videoId!==item.id||owner!==channelId)throw Error('YouTube 视频页面身份无法核验');
+    const info=embedded(html,'ytInitialData');
+    const rows=asList(field(info,'contents','twoColumnWatchNextResults','results','results','contents'));
+    const ownerRow=rows.find(row=>Boolean(field(row,'videoSecondaryInfoRenderer')));
+    const owner=field(ownerRow,'videoSecondaryInfoRenderer','owner','videoOwnerRenderer','navigationEndpoint','browseEndpoint','browseId');
+    if(field(info,'currentVideoEndpoint','watchEndpoint','videoId')!==item.id||owner!==channelId)throw Error('YouTube 视频页面身份无法核验');
     inspected.push({videoId:item.id,player,watch:info});
-    const date=rows.find((r:any)=>r.videoPrimaryInfoRenderer)?.videoPrimaryInfoRenderer?.dateText?.simpleText;
+    const date=field(rows.find(row=>Boolean(field(row,'videoPrimaryInfoRenderer'))),'videoPrimaryInfoRenderer','dateText','simpleText');
     const time=typeof date==='string'&&/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/.test(date)?Date.parse(`${date} 00:00:00 GMT`):NaN;
     // An old displayed calendar date is enough to exclude a historical video;
     // it is never converted to a fabricated publication timestamp.
@@ -76,10 +122,10 @@ export async function fetchYoutubePageFeed(channelId:string,signal?:AbortSignal,
    }
    if(details.videoId!==item.id||details.channelId!==channelId||(meta?.externalChannelId&&meta.externalChannelId!==channelId))throw Error('YouTube 视频所属频道不匹配');
    // A date without an offset cannot establish the author's Beijing publication day.
-   const stamp=meta?.liveBroadcastDetails?.startTimestamp??meta?.publishDate;
+   const stamp=field(meta,'liveBroadcastDetails','startTimestamp')??meta?.publishDate;
    if(typeof stamp!=='string'||!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(stamp)||!Number.isFinite(Date.parse(stamp)))throw Error('YouTube 视频缺少带时区的真实发布日期');
    inspected.push({videoId:item.id,player});
-   videos.push({id:item.id,title:z.string().trim().min(1).max(240).parse(details.title),publishedAt:new Date(stamp).toISOString(),player});
+   videos.push({id:item.id,title:z.string().trim().min(1).max(240).parse(details.title),publishedAt:new Date(stamp).toISOString()});
   }
  }));
  signal?.throwIfAborted();videos.sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt));

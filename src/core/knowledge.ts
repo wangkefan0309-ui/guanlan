@@ -7,15 +7,25 @@ export const knowledgeModeSchema = z.enum(['discussion', 'direct-wiki']);
 export type KnowledgeMode = z.infer<typeof knowledgeModeSchema>;
 const receiptSchema = z.object({ schema: z.literal(1), id: digest, version: digest, originalHash: digest,
   originalPath: z.string(), rawPath: z.string(), sourceId: z.string().regex(/^SRC-[a-f0-9]{12}$/),
-  taskPath: z.string(), textPath: z.string(), createdAt: z.string().datetime(), mode:knowledgeModeSchema.optional(), wikiRequestedAt:z.string().datetime().optional(), wikiSubmittedAt:z.string().datetime().optional(), conversationId: z.string().min(1).max(240).optional(), recovery:z.boolean().optional(), previousConversationId:z.string().min(1).max(240).optional(), queuedAt:z.string().datetime().optional(),cancelledAt:z.string().datetime().optional(),submittedAt:z.string().datetime().optional(), taskHash:digest.optional(), textHash:digest.optional() }).strict();
+  taskPath: z.string(), textPath: z.string(), createdAt: z.iso.datetime(), mode:knowledgeModeSchema.optional(), wikiRequestedAt:z.iso.datetime().optional(), wikiSubmittedAt:z.iso.datetime().optional(), conversationId: z.string().min(1).max(240).optional(), recovery:z.boolean().optional(), previousConversationId:z.string().min(1).max(240).optional(), queuedAt:z.iso.datetime().optional(),cancelledAt:z.iso.datetime().optional(),submittedAt:z.iso.datetime().optional(), taskHash:digest.optional(), textHash:digest.optional() }).strict();
 export type KnowledgeReceipt = z.infer<typeof receiptSchema>;
 export type KnowledgeStatus = { label: string; receipt: KnowledgeReceipt | null; runId?: string; outputs: string[]; issue?: string };
 export function knowledgePending(receipt:KnowledgeReceipt):boolean {
   return !!((receipt.queuedAt&&!receipt.submittedAt)||(receipt.wikiRequestedAt&&!receipt.wikiSubmittedAt));
 }
 export const promotionReceiptSchema=z.object({schema:z.literal(1),sourceId:z.string().regex(/^SRC-[a-f0-9]{12}$/),runId:z.string().regex(/^RUN-\d{8}-\d{6}-[a-f0-9]{6}$/),authorization:z.string().trim().min(1).max(4000),targets:z.array(z.object({path:z.string(),hash:digest,role:z.enum(['note','board'])}).strict()).min(2).max(10)}).strict();
-const phases = ['preflight','register','extract','compile','integrate','verify','promote','discussion','finalize'];
+const phases = ['preflight','register','extract','compile','integrate','verify','promote','discussion','finalize'] as const;
 const runId = /^RUN-\d{8}-\d{6}-[a-f0-9]{6}$/;
+const eventRecord = z.record(z.string(), z.unknown());
+const runEvent = z.object({
+  phase: z.enum(phases),
+  status: z.enum(['started', 'awaiting', 'completed', 'skipped', 'failed']),
+  outputs: z.array(z.string()),
+});
+
+function parseEvents(text: string | null) {
+  return text?.split('\n').filter(line => line.trim()).map(line => eventRecord.parse(JSON.parse(line))) ?? [];
+}
 export function wikiPath(path: unknown, area?: string): path is string {
   return typeof path === 'string' && path.startsWith(`08_LLM Wiki/${area ? `${area}/` : ''}`) &&
     !/[\\:\x00-\x1f<>"|?*]/.test(path) && !/Rocker|摇杆/i.test(path) &&
@@ -56,16 +66,16 @@ export class KnowledgePipeline {
       const bytes=await this.files.readBinary(item.originalPath);
       if(!bytes || await hash(bytes)!==item.originalHash)throw new Error('来源原件缺失或已被修改，请先恢复');
       const {id:_id,version:_version,path:_path,originalPath:_original,originalHash:_hash,progress:_progress,position:_position,savedAt:_saved,...material}=item;
-      const snapshot={...material,original:{extension:item.originalPath.split('.').at(-1) as any,base64:''}};
+      const extension = z.enum(['md', 'html', 'pdf', 'srt', 'vtt', 'json']).safeParse(item.originalPath.split('.').at(-1));
+      if (!extension.success) throw new Error('原件格式暂不支持知识接续');
+      const snapshot={...material,original:{extension:extension.data,base64:''}};
       if(await materialVersion(snapshot,bytes)!==item.version&&await materialVersion(snapshot,bytes,true)!==item.version)throw new Error('正文与材料版本不匹配，请恢复阅读索引');
       if(await this.files.read(item.path)===null)throw new Error('正文笔记缺失，请先恢复');
       const existing=await this.receipt(item);
       if(existing){await this.verify(existing);return existing;}
       const key=`${item.id.slice(0,20)}-${item.version.slice(0,20)}`;
-      const extension=item.originalPath.split('.').at(-1)!;
-      if(!['md','html','pdf','srt','vtt','json'].includes(extension))throw new Error('原件格式暂不支持知识接续');
       const receipt=receiptSchema.parse({schema:1,id:item.id,version:item.version,originalHash:item.originalHash,originalPath:item.originalPath,
-        rawPath:`08_LLM Wiki/RAW/workbench-${item.originalHash}.${extension}`,sourceId:`SRC-${item.originalHash.slice(0,12)}`,
+        rawPath:`08_LLM Wiki/RAW/workbench-${item.originalHash}.${extension.data}`,sourceId:`SRC-${item.originalHash.slice(0,12)}`,
         taskPath:`${this.root}/知识接续/${key}.md`,textPath:`${this.root}/知识接续/${key}-正文.md`,createdAt:this.now()});
       // This is an extraction snapshot, not the editable reading note or an AI guide.
       await this.ensure(receipt.textPath,`# ${escapeLine(item.title)}\n\n覆盖 ${item.coverage}\n\n${item.gaps.map(gap=>`- ${escapeLine(gap)}`).join('\n')}\n\n${item.body}\n`);
@@ -101,15 +111,17 @@ export class KnowledgePipeline {
   }
   bind(item: Pick<ReadingItem,'id'|'version'>, conversationId: string, recovery=false) {
     return this.serial(async()=>{const path=this.path(item);const previous=await this.files.read(path);if(previous===null)throw new Error('请先准备材料');
-      const receipt=this.validate(receiptSchema.parse({...JSON.parse(previous),conversationId}),item);
-      if(recovery){receipt.previousConversationId=JSON.parse(previous).conversationId;receipt.recovery=true;delete receipt.submittedAt;delete receipt.queuedAt;delete receipt.wikiRequestedAt;delete receipt.cancelledAt;}
+      const saved = this.validate(receiptSchema.parse(JSON.parse(previous)), item);
+      const receipt = receiptSchema.parse({ ...saved, conversationId });
+      if(recovery){receipt.previousConversationId=saved.conversationId;receipt.recovery=true;delete receipt.submittedAt;delete receipt.queuedAt;delete receipt.wikiRequestedAt;delete receipt.cancelledAt;}
       await this.files.write(path,JSON.stringify(receipt,null,2),previous);return receipt;});
   }
   markSubmitted(item: Pick<ReadingItem,'id'|'version'>,requireQueued=false) {
     return this.serial(async()=>{const path=this.path(item),previous=await this.files.read(path);if(previous===null)throw new Error('接续记录缺失');
-      if(requireQueued&&!JSON.parse(previous).queuedAt)throw new Error('待处理任务已取消，没有发送');
-      if(JSON.parse(previous).submittedAt)throw new Error('任务已提交，没有重复发送');
-      const receipt=this.validate(receiptSchema.parse({...JSON.parse(previous),submittedAt:this.now()}),item);delete receipt.cancelledAt;
+      const saved = this.validate(receiptSchema.parse(JSON.parse(previous)), item);
+      if(requireQueued&&!saved.queuedAt)throw new Error('待处理任务已取消，没有发送');
+      if(saved.submittedAt)throw new Error('任务已提交，没有重复发送');
+      const receipt=receiptSchema.parse({...saved,submittedAt:this.now()});delete receipt.cancelledAt;
       if(receipt.mode==='direct-wiki'&&!receipt.recovery)receipt.wikiSubmittedAt=receipt.submittedAt;
       await this.files.write(path,JSON.stringify(receipt,null,2),previous);return receipt;});
   }
@@ -126,25 +138,35 @@ export class KnowledgePipeline {
     try {
       await this.verify(receipt);
       if((receipt.cancelledAt&&!receipt.submittedAt) || (receipt.queuedAt&&!receipt.submittedAt))return result;
-      const lines=(text:string|null)=>text?.split('\n').filter(line=>line.trim()).map(line=>JSON.parse(line))??[];
-      const sources=lines(await wiki.read('08_LLM Wiki/state/source-events.jsonl')).filter(e=>e.source_id===receipt.sourceId);
-      const registered=sources.find(e=>['registered','alias_added'].includes(e.event)&&e.sha256===receipt.originalHash&&wikiPath(e.raw_path,'RAW')&&wikiPath(e.record_path,'sources'));
+      const sources=parseEvents(await wiki.read('08_LLM Wiki/state/source-events.jsonl')).filter(e=>e.source_id===receipt.sourceId);
+      const registered = sources.find((event): event is typeof event & { raw_path: string; record_path: string } =>
+        (event.event === 'registered' || event.event === 'alias_added') && event.sha256 === receipt.originalHash &&
+        wikiPath(event.raw_path, 'RAW') && wikiPath(event.record_path, 'sources'));
       if(!registered)return result;
       const original=await wiki.readBinary(registered.raw_path);
       if(!original || await hash(original)!==receipt.originalHash)throw new Error('RAW 原件缺失或哈希不符');
       const record=await wiki.read(registered.record_path);if(record===null)throw new Error('来源档案缺失');
       if(!record.includes(receipt.id)||!record.includes(receipt.version))throw new Error('已有 RAW 来源尚未核对当前材料版本；请在 Claudian 中比较提取稿后接续');
-      const current=[...sources].reverse().find(e=>runId.test(e.run_id??'')&&!['alias_added','version_detected'].includes(e.event));
+      const current = [...sources].reverse().find((event): event is typeof event & { run_id: string } =>
+        typeof event.run_id === 'string' && runId.test(event.run_id) && event.event !== 'alias_added' && event.event !== 'version_detected');
       if(!current)throw new Error('缺少有效运行编号');result.runId=current.run_id;
-      const events=lines(await wiki.read('08_LLM Wiki/state/run-events.jsonl')).filter(e=>e.source_id===receipt.sourceId&&e.run_id===current.run_id);
-      const latest=new Map<string,any>();
-      for(const e of events){if(!phases.includes(e.phase)||!['started','awaiting','completed','skipped','failed'].includes(e.status)||!Array.isArray(e.outputs))throw new Error('运行事件格式无效');latest.set(e.phase,e);}
+      const events = parseEvents(await wiki.read('08_LLM Wiki/state/run-events.jsonl'))
+        .filter(event => event.source_id === receipt.sourceId && event.run_id === current.run_id)
+        .map(event => {
+          const parsed = runEvent.safeParse(event);
+          if (!parsed.success) throw new Error('运行事件格式无效');
+          return parsed.data;
+        });
+      const latest = new Map(events.map(event => [event.phase, event]));
       const last=events.at(-1);if(!last){result.label='RAW 已登记';return result;}
       for(const e of latest.values())for(const path of e.outputs){if(!wikiPath(path)||await wiki.readBinary(path)===null)throw new Error('运行产物缺失或路径越界');}
       const before=phases.slice(0,phases.indexOf(last.phase));
-      if(before.some(phase=>!['completed',...(phase==='promote'||phase==='discussion'?['skipped']:[])].includes(latest.get(phase)?.status)))throw new Error('阶段顺序或前置产物尚未核对');
+      if (before.some(phase => {
+        const status = latest.get(phase)?.status;
+        return status !== 'completed' && !((phase === 'promote' || phase === 'discussion') && status === 'skipped');
+      })) throw new Error('阶段顺序或前置产物尚未核对');
       result.outputs=[...new Set<string>([registered.record_path,...events.flatMap(e=>e.outputs)])];
-      const finalized=sources.some(e=>e.run_id===current.run_id&&['finalized','promoted'].includes(e.event));
+      const finalized=sources.some(e=>e.run_id===current.run_id&&(e.event==='finalized'||e.event==='promoted'));
       result.label=last.status==='failed'||current.event==='failed'?'处理失败，可恢复':['finalize','promote'].includes(last.phase)&&latest.get('finalize')?.status==='completed'&&finalized?'Wiki 已归纳':last.phase==='discussion'&&last.status==='awaiting'&&current.event==='awaiting_dialogue'?'等待讨论':'RAW 加工中';
       if(['等待讨论','Wiki 已归纳'].includes(result.label)&&(!last.outputs.length||!latest.get('integrate')?.outputs?.some((p:string)=>wikiPath(p,'wiki'))))throw new Error('讨论或 Wiki 实际产物尚未核对');
       if(result.label==='Wiki 已归纳'&&current.event==='promoted'){
@@ -159,7 +181,7 @@ export class KnowledgePipeline {
           for(const target of promotion.targets){const bytes=await wiki.readBinary(target.path);if(!bytes||await hash(bytes)!==target.hash)throw new Error('晋升目标缺失或已变化');texts.set(target.path,new TextDecoder().decode(bytes));}
           const notes=promotion.targets.filter(t=>t.role==='note'),boards=promotion.targets.filter(t=>t.role==='board');
           const link=(content:string,target:string)=>content.includes(`[[${target}]]`)||content.includes(`[[${target}|`)||content.includes(`[[${target.replace(/\.md$/,'')}]]`)||content.includes(`[[${target.replace(/\.md$/,'')}|`);
-          if(notes.some(t=>!link(texts.get(t.path)!,registered.record_path)||!latest.get('integrate').outputs.some((p:string)=>wikiPath(p,'wiki')&&link(texts.get(t.path)!,p)))||notes.some(t=>!boards.some(b=>link(texts.get(b.path)!,t.path))))throw new Error('晋升笔记的来源、Wiki 或看板回链缺失');
+          if(notes.some(t=>!link(texts.get(t.path)!,registered.record_path)||!latest.get('integrate')?.outputs.some(p=>wikiPath(p,'wiki')&&link(texts.get(t.path)!,p)))||notes.some(t=>!boards.some(b=>link(texts.get(b.path)!,t.path))))throw new Error('晋升笔记的来源、Wiki 或看板回链缺失');
           result.outputs=[...new Set([...result.outputs,path,...promotion.targets.map(t=>t.path)])];result.label='fanOS 已晋升';
         }catch(error){result.label='Wiki 已归纳，晋升需核对';result.issue=error instanceof Error?error.message:'无法核对晋升目标';}
       }

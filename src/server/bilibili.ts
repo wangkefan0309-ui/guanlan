@@ -1,3 +1,4 @@
+import { field } from '../core/structured';
 import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
@@ -34,8 +35,8 @@ function escape(value: string) { return value.replace(/[&<>"']/g, character => (
 /** Public upload metadata only. API errors are failures, never empty successful feeds. */
 export async function fetchBilibiliFeed(uid: string, signal?: AbortSignal, read: ReadJson = readPublicJson, now = new Date()): Promise<FeedResponse> {
   if (!/^\d{1,20}$/.test(uid)) throw new Error('B站 UID 无效');
-  const nav = JSON.parse(await read(new URL('https://api.bilibili.com/x/web-interface/nav'), uid, signal));
-  const keys = z.object({ img_url: z.string().url(), sub_url: z.string().url() }).parse(nav.data?.wbi_img);
+  const nav: unknown = JSON.parse(await read(new URL('https://api.bilibili.com/x/web-interface/nav'), uid, signal));
+  const keys = z.object({ img_url: z.url(), sub_url: z.url() }).parse(field(nav, 'data', 'wbi_img'));
   const key = [keys.img_url, keys.sub_url].map(value => new URL(value).pathname.split('/').at(-1)!.split('.')[0]).join('');
   if (!/^[a-f\d]{64}$/i.test(key)) throw new Error('B站未返回有效的 WBI 密钥');
   const mixed = permutation.map(index => key[index]).join('').slice(0, 32);
@@ -49,11 +50,12 @@ export async function fetchBilibiliFeed(uid: string, signal?: AbortSignal, read:
 export function bilibiliFeedFromJson(uid: string, raw: string, maximum = 200): FeedResponse {
   if (!/^\d{1,20}$/.test(uid)) throw new Error('B站 UID 无效');
   if (Buffer.byteLength(raw) > 2_000_000) throw new Error('B站列表超过大小限制');
-  const result = JSON.parse(raw);
-  if (result.code !== 0) throw new Error(`B站列表未取得（接口代码 ${String(result.code).slice(0, 20)}），将按退避间隔重试`);
-  const videos = z.array(videoSchema).max(maximum).parse(result.data?.list?.vlist);
+  const result: unknown = JSON.parse(raw);
+  const code = field(result, 'code');
+  if (code !== 0) throw new Error(`B站列表未取得（接口代码 ${String(code).slice(0, 20)}），将按退避间隔重试`);
+  const videos = z.array(videoSchema).max(maximum).parse(field(result, 'data', 'list', 'vlist'));
   if (videos.some(video => String(video.mid) !== uid)) throw new Error('B站返回的视频作者 UID 与订阅不符');
-  if (!videos.length && result.data?.page?.count !== 0) throw new Error('B站列表为空且缺少可核对的零投稿数量');
+  if (!videos.length && field(result, 'data', 'page', 'count') !== 0) throw new Error('B站列表为空且缺少可核对的零投稿数量');
   if (videos.some(video => !video.title.trim() || !Number.isFinite(new Date(video.created * 1000).getTime()))) throw new Error('B站标题或发布时间无效');
   const url = `https://space.bilibili.com/${uid}`;
   const body = `<rss version="2.0"><channel><title>${escape(videos[0]?.author ?? uid)}</title><link>${url}</link>${videos.map(video => `<item><title>${escape(video.title)}</title><link>https://www.bilibili.com/video/${video.bvid}</link><pubDate>${new Date(video.created * 1000).toUTCString()}</pubDate></item>`).join('')}</channel></rss>`;

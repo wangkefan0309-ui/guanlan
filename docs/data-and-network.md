@@ -12,6 +12,8 @@ Guanlan is free to use and does not include usage telemetry. Optional third-part
 
 The service URL starts as localhost with an empty token. Remote service and model URLs require HTTPS. Automatic AI and discovery are off by default. The plugin stores configuration, including entered service tokens and API keys, in its Vault configuration. If you sync that folder, the configuration may be synced as well. When using the service, its storage (including subscription and captured material data) is separate from the Vault. Do not include token, API key, or account session files in a bug report.
 
+Some imports use Base64 to represent original file bytes in JSON and recover those bytes when saving the original. Base64 is an encoding; use the destinations in the table to determine where the material goes.
+
 ## 中文
 
 观澜本身免费，不包含使用行为统计。部分第三方服务可能要求各自的账号、密钥或订阅。
@@ -25,3 +27,5 @@ The service URL starts as localhost with an empty token. Remote service and mode
 | 查看原文和远程图片 | 点击原文会访问对应网站；笔记含外部图片时，Obsidian 可能向原图网站请求图片。 |
 
 材料服务默认地址是本机，令牌为空；远程服务和模型地址要求 HTTPS。自动 AI 和探索默认关闭。输入的令牌和密钥保存在库内插件配置中，如果同步这个配置目录，密钥也可能随之同步。独立材料服务有自己的数据目录。反馈问题时不要附带令牌、API Key 或账号会话文件。
+
+部分导入流程用 Base64 在 JSON 中表示原件字节，保存原件时再还原。Base64 是编码，材料会发往哪里取决于上表中的功能和配置。

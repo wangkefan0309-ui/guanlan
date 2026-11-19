@@ -1,3 +1,4 @@
+import { asList, asText, field } from '../core/structured';
 import { z } from 'zod';
 import { request as httpsRequest } from 'node:https';
 import type { FileStore } from '../core/model';
@@ -11,9 +12,9 @@ const channelPattern = /^UC[\w-]{22}$/, playlistPattern = /^[\w-]{10,100}$/, vid
 const nameSchema = z.string().trim().min(1).max(160);
 const channelSchema = z.object({ id: z.string().regex(channelPattern), snippet: z.object({ title: nameSchema }), contentDetails: z.object({ relatedPlaylists: z.object({ uploads: z.string().regex(playlistPattern) }) }) });
 const stateSchema = z.object({
-  schema: z.literal(1), revision: z.string().uuid(), key: z.union([z.literal(''), z.string().regex(/^[A-Za-z0-9_-]{20,200}$/)]), verifiedAt: z.string().datetime().nullable(),
+  schema: z.literal(1), revision: z.uuid(), key: z.union([z.literal(''), z.string().regex(/^[A-Za-z0-9_-]{20,200}$/)]), verifiedAt: z.iso.datetime().nullable(),
   usageDay: z.string(), requests: z.number().int().nonnegative(), pausedDay: z.string().nullable(), lastError: z.string(),
-  channels: z.record(z.string(), z.object({ name: nameSchema, uploads: z.string().regex(playlistPattern), at: z.string().datetime() })),
+  channels: z.record(z.string(), z.object({ name: nameSchema, uploads: z.string().regex(playlistPattern), at: z.iso.datetime() })),
 }).strict();
 type State = z.infer<typeof stateSchema>;
 export type YoutubeApiRequest = (resource: 'channels' | 'playlistItems', parameters: Record<string, string>, key: string, signal?: AbortSignal) => Promise<unknown>;
@@ -32,10 +33,11 @@ export const requestYoutubeApi: YoutubeApiRequest = async (resource, parameters,
       let size = 0; const chunks: Buffer[] = [];
       response.on('data', (chunk: Buffer) => { size += chunk.length; if (size > 4_000_000) request.destroy(Error('官方接口响应过大')); else chunks.push(chunk); });
       response.on('end', () => {
-        let data: any; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { reject(Error('官方接口未返回有效JSON')); return; }
+        let data: unknown; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { reject(Error('官方接口未返回有效JSON')); return; }
         if (response.statusCode !== 200) {
-          const reason = data?.error?.errors?.[0]?.reason;
-          const invalidKey = ['keyInvalid', 'accessNotConfigured', 'ipRefererBlocked', 'forbidden'].includes(reason) || /API key not valid|API_KEY_INVALID|API_KEY_SERVICE_BLOCKED|API_KEY_IP_ADDRESS_BLOCKED|SERVICE_DISABLED/.test(JSON.stringify(data?.error?.details ?? []) + String(data?.error?.message ?? ''));
+          const problem = field(data, 'error');
+          const reason = asText(field(asList(field(problem, 'errors'))[0], 'reason')) ?? '';
+          const invalidKey = ['keyInvalid', 'accessNotConfigured', 'ipRefererBlocked', 'forbidden'].includes(reason) || /API key not valid|API_KEY_INVALID|API_KEY_SERVICE_BLOCKED|API_KEY_IP_ADDRESS_BLOCKED|SERVICE_DISABLED/.test(JSON.stringify(field(problem, 'details') ?? []) + (asText(field(problem, 'message')) ?? ''));
           reject(Error(['quotaExceeded', 'dailyLimitExceeded'].includes(reason) ? '官方接口配额已用完，今日暂停此路线' : invalidKey ? '官方接口密钥、启用状态或密钥限制不符，请检查配置' : `官方接口返回HTTP ${response.statusCode}`)); return;
         }
         if (!/^application\/json\b/i.test(response.headers['content-type'] ?? '')) { reject(Error('官方接口未返回JSON')); return; }
@@ -115,13 +117,19 @@ export class YoutubeApiAccess {
       const today = beijingDate(this.now()), earliest = new Date(Date.parse(today) - catchupDays * 86_400_000).toISOString().slice(0, 10);
       for (let page = 0; page < 2; page++) {
         const data = await call('playlistItems', { part: 'snippet,contentDetails,status', playlistId: channel.uploads, maxResults: '50', ...(pageToken ? { pageToken } : {}) }); originals.push(data);
-        const list = z.object({ items: z.array(z.any()).max(50), nextPageToken: z.string().max(1024).optional() }).parse(data);
+        const list = z.object({ items: z.array(z.unknown()).max(50), nextPageToken: z.string().max(1024).optional() }).parse(data);
         for (const item of list.items) {
-          if (item.status?.privacyStatus && item.status.privacyStatus !== 'public') continue;
-          if (item.snippet?.channelId !== channelId || (item.snippet?.videoOwnerChannelId && item.snippet.videoOwnerChannelId !== channelId) || item.snippet?.playlistId !== channel.uploads || item.snippet?.resourceId?.videoId !== item.contentDetails?.videoId || item.snippet?.resourceId?.kind !== 'youtube#video') throw Error('官方接口视频与频道身份不符');
-          const stamp = item.contentDetails?.videoPublishedAt;
+          const privacy = field(item, 'status', 'privacyStatus');
+          if (privacy && privacy !== 'public') continue;
+          const snippet = field(item, 'snippet');
+          const details = field(item, 'contentDetails');
+          const ownerId = field(snippet, 'videoOwnerChannelId');
+          const videoId = field(details, 'videoId');
+          const resourceId = field(snippet, 'resourceId');
+          if (field(snippet, 'channelId') !== channelId || (ownerId && ownerId !== channelId) || field(snippet, 'playlistId') !== channel.uploads || field(resourceId, 'videoId') !== videoId || field(resourceId, 'kind') !== 'youtube#video') throw Error('官方接口视频与频道身份不符');
+          const stamp = field(details, 'videoPublishedAt');
           if (typeof stamp !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(stamp) || !Number.isFinite(Date.parse(stamp))) throw Error('官方接口缺少真实视频发布日期');
-          videos.push({ id: z.string().regex(videoPattern).parse(item.contentDetails.videoId), title: z.string().trim().min(1).max(240).parse(item.snippet.title), publishedAt: new Date(stamp).toISOString() });
+          videos.push({ id: z.string().regex(videoPattern).parse(videoId), title: z.string().trim().min(1).max(240).parse(field(snippet, 'title')), publishedAt: new Date(stamp).toISOString() });
         }
         pageToken = list.nextPageToken;
         if (!pageToken || scope !== 'today' || videos.some(v => beijingDate(new Date(v.publishedAt)) < earliest)) break;

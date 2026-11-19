@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { canonicalIdentity, checkReadingPath, coverageLabels, decodeBase64, escapeLine, feedSchema, hash, itemSchema, materialSchema, materialVersion, readingRoot, safeLink, stateSchema, topicLabels } from './model';
 import type { FileStore, LibraryState, Material, ReadingItem } from './model';
 import { beijingDate, makeDailyPlan, itemKey, type DailyOptions, type ReviewReceipt, type ReviewResponse } from './daily';
@@ -160,8 +161,11 @@ export class ReadingLibrary {
     // Persist first-capture metadata before writing files. A failed final commit can then be retried.
     const preparedPath = `${this.root}/_工作台/待提交/${key}.json`;
     const prepared = await this.files.read(preparedPath);
-    const recovery = prepared === null ? null : JSON.parse(prepared);
-    const item = itemSchema.parse(recovery === null ? { ...contents, id, version, path, originalPath, originalHash: originalBytes ? await hash(originalBytes) : undefined, progress: 'unread', position: '', savedAt: this.now() } : recovery.item);
+    const recovery = prepared === null ? null : z.object({
+      item: itemSchema,
+      original: materialSchema.shape.original,
+    }).parse(JSON.parse(prepared));
+    const item = recovery?.item ?? itemSchema.parse({ ...contents, id, version, path, originalPath, originalHash: originalBytes ? await hash(originalBytes) : undefined, progress: 'unread', position: '', savedAt: this.now() });
     if (item.id !== id || item.version !== version || item.path !== path || item.originalPath !== originalPath) throw new Error('导入恢复记录不匹配，请检查工作台状态');
     if (prepared === null) await this.ensureText(preparedPath, JSON.stringify({item,original:material.original}));
     if (originalPath && originalBytes) {
@@ -169,7 +173,7 @@ export class ReadingLibrary {
       if (existing) {
         if (await hash(existing) !== item.originalHash) throw new Error(`原件已被修改，已保留：${originalPath}`);
       } else {
-        const recovered = recovery?.original ? materialSchema.parse({...contents,original:recovery.original}).original! : material.original!;
+        const recovered = recovery?.original ?? material.original!;
         const bytes = recovery?.original ? decodeBase64(recovered.base64) : originalBytes;
         if (recovered.extension !== material.original?.extension || await hash(bytes) !== item.originalHash) throw new Error('原件恢复记录校验失败，请检查工作台状态');
         await this.files.writeBinary(originalPath, bytes);
@@ -259,7 +263,11 @@ export class ReadingLibrary {
       const plan = makeDailyPlan(eligible.map(item=>({...item,...grouping?.get(itemKey(item))})), options, state.reviews, contextHash, new Date(this.now()));
       const contents = `---\nauthor: Silas\n---\n\n# 今日阅读 · ${plan.date}\n\n预算 ${plan.options.budgetMinutes} 分钟，最多 ${plan.options.maxItems} 项；已选 ${plan.picks.length} 项，约 ${plan.totalMinutes} 分钟。${plan.mode === 'rules' ? '规则精选；尚无当前配置的 AI 评分。' : '采用已保存的 AI 评价，未评估材料仍按规则选取。'}\n\n${plan.missingTopics.length ? `当前待读正文缺少 ${plan.missingTopics.join('、')}。\n\n` : ''}${plan.picks.map(({ item, minutes, reason, review, model }) => `- [[${item.path}|${escapeLine(item.title)}]] · ${topicLabels[item.topic]} · 约 ${minutes} 分钟${item.url ? ` · [原文](${safeLink(item.url)})` : ''}\n  推荐理由 ${escapeLine(reason)}\n  ${review ? `AI 导读（${escapeLine(model!)}；前 ${review.sampledChars}/${review.totalChars} 字符）${escapeLine(review.guide)}` : escapeLine(item.guide || coverageLabels[item.coverage])}`).join('\n\n') || '暂时没有预算内可选的待阅读正文；全部材料和视频更新仍可查看。'}\n\n视频链接在工作台“视频更新”中查看，观看耗时未知，不计入上述正文预算。\n`;
       const pendingPath=`${this.root}/_工作台/待提交/今日阅读.json`;
-      const pending=await this.files.read(pendingPath);const recovery=pending===null?null:JSON.parse(pending);
+      const pending = await this.files.read(pendingPath);
+      const recovery = pending === null ? null : z.object({
+        previousHash: z.string().optional(),
+        nextHash: z.string(),
+      }).parse(JSON.parse(pending));
       if (existing !== contents) {
         if (existing !== null && await hash(existing) !== state.dailyHash && !(recovery?.previousHash===state.dailyHash && recovery?.nextHash===await hash(existing))) throw new Error('今日阅读清单已被修改，已保留；工作台仍可直接阅读材料');
         await this.files.write(pendingPath,JSON.stringify({previousHash:state.dailyHash,nextHash:await hash(contents)}));

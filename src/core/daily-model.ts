@@ -20,7 +20,7 @@ export const reviewUsageSchema = z.object({ inputTokens: z.number().int().nonneg
 export const reviewResponseSchema = z.object({ content: z.string().min(1).max(100_000), usage: reviewUsageSchema.optional() }).strict();
 export const reviewReceiptSchema = z.object({
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/), contextHash: z.string().regex(/^[a-f0-9]{64}$/),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), createdAt: z.string().datetime(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), createdAt: z.iso.datetime(),
   model: z.string().min(1).max(240), endpoint: z.string().max(4096), promptVersion: z.string().max(120),
   keys: z.array(z.string().regex(/^[a-f0-9]{64}:[a-f0-9]{64}$/)).min(1).max(12),
   status: z.enum(['started', 'completed', 'failed']), entries: z.array(reviewEntrySchema).max(12).default([]),

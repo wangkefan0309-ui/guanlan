@@ -26,7 +26,7 @@ const materialBase = z.object({
   kind: z.enum(['article', 'pdf', 'markdown']),
   purpose: z.enum(['reading', 'validation']).default('reading'),
   publishedAt: z.string().max(80).optional(),
-  capturedAt: z.string().datetime(),
+  capturedAt: z.iso.datetime(),
   body: z.string().max(1_500_000),
   coverage: z.enum(['full', 'partial', 'metadata']),
   gaps: z.array(z.string().max(500)).max(40).default([]),
@@ -53,7 +53,7 @@ export const itemSchema = materialBase.omit({ original: true }).extend({
   originalHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   progress: z.enum(['unread', 'later', 'reading', 'done']).default('unread'),
   position: z.string().max(1000).default(''),
-  savedAt: z.string().datetime(),
+  savedAt: z.iso.datetime(),
 }).superRefine(validateMaterial);
 export type ReadingItem = z.infer<typeof itemSchema>;
 export const feedSchema = z.object({
@@ -71,7 +71,7 @@ export const dialogueSchema = z.object({
 export const stateSchema = z.object({
   schema: z.literal(1),
   items: z.array(itemSchema),
-  trash: z.array(z.object({ item: itemSchema, deletedAt: z.string().datetime() })).default([]),
+  trash: z.array(z.object({ item: itemSchema, deletedAt: z.iso.datetime() })).default([]),
   feedInstance: z.string().default(''),
   cursor: z.number().int().nonnegative().default(0),
   dailyHash: z.string().default(''),

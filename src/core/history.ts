@@ -7,7 +7,7 @@ const dayFormat = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }
 const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(day => Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day);
 const keySchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const historyDaySchema = z.object({
-  date: daySchema, createdAt: z.string().datetime(), maxItems: z.number().int().min(1).max(5),
+  date: daySchema, createdAt: z.iso.datetime(), maxItems: z.number().int().min(1).max(5),
   picks: z.array(z.object({ id: keySchema, version: keySchema, reason: z.string().min(1).max(240) }).strict()).max(5),
 }).strict().refine(day => new Set(day.picks.map(pick => pick.id)).size === day.picks.length && day.picks.length <= day.maxItems);
 export const historyDaysSchema = z.array(historyDaySchema).default([]).refine(days => new Set(days.map(day => day.date)).size === days.length, '历史精选日期重复');

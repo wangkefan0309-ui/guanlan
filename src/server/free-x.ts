@@ -15,7 +15,7 @@ export interface FreeXRuntime {
 const attemptSchema = z.object({
   id: z.string().regex(/^[a-f0-9]{64}$/), query: z.string().max(512),
   status: z.enum(['started', 'ok', 'failed']), returned: z.number().int().min(0).max(20).optional(),
-  receiptHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), observedAt: z.string().datetime().optional(),
+  receiptHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), observedAt: z.iso.datetime().optional(),
   postIds: z.array(z.string().regex(/^\d+$/)).max(20).optional(),
 }).strict().superRefine((attempt, ctx) => {
   if (attempt.status === 'ok' && (attempt.returned === undefined || !attempt.receiptHash || !attempt.observedAt)) ctx.addIssue({ code: 'custom', message: '免费X回执缺少原件依据' });

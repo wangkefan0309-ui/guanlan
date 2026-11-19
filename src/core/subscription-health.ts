@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const collectionIssueKindSchema = z.enum(['network', 'authorization', 'rate-limit', 'verification', 'content', 'storage', 'unknown']);
 export type CollectionIssueKind = z.infer<typeof collectionIssueKindSchema>;
 export const subscriptionCheckSchema = z.object({
-  checkedAt: z.string().datetime(), status: z.enum(['ok', 'error', 'waiting']),
+  checkedAt: z.iso.datetime(), status: z.enum(['ok', 'error', 'waiting']),
   kind: collectionIssueKindSchema.optional(), message: z.string().max(600),
 }).strict();
 

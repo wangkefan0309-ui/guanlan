@@ -6,7 +6,7 @@ import { withTimeout } from '../core/settings';
 
 // Bump the adapter revision when its contract changes. A local check only
 // verifies this interface contract; it does not claim a successful model run.
-const compatibilitySchema=z.object({adapter:z.literal(1),version:z.string().min(1).max(100),verifiedAt:z.string().datetime()});
+const compatibilitySchema=z.object({adapter:z.literal(1),version:z.string().min(1).max(100),verifiedAt:z.iso.datetime()});
 type CompatibilityReceipt=z.infer<typeof compatibilitySchema>;
 export interface ClaudianVerificationStore {
   load():Promise<unknown>;
