@@ -7,7 +7,7 @@
 <p align="center">購読先の更新、読みたい記事、知識ノートを Obsidian にひとまとめに。AI エージェントと一緒に、読んで得た知識を自分のナレッジベースに残せます。</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.7-31595b" alt="バージョン: v0.22.7">
+  <img src="https://img.shields.io/badge/version-v0.22.8-31595b" alt="バージョン: v0.22.8">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: デスクトップ版 1.13 以降">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: 22.13 以降">
 </p>

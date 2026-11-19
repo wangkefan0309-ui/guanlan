@@ -7,7 +7,7 @@
 <p align="center">Bring the updates you follow, your reading picks, and your notes together in Obsidian. Work with your AI agent to turn what you learn into a personal knowledge base.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.7-31595b" alt="Version: v0.22.7">
+  <img src="https://img.shields.io/badge/version-v0.22.8-31595b" alt="Version: v0.22.8">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: Desktop ≥ 1.13">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: ≥ 22.13">
 </p>

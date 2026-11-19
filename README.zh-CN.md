@@ -7,7 +7,7 @@
 <p align="center">汇百川，见新知。把关注的更新、选读和知识笔记汇聚在一起，并通过与 AI Agent 的协作进行知识沉淀，让打造你的 Obsidian 个人知识库更加高效。</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.22.7-31595b" alt="版本: v0.22.7">
+  <img src="https://img.shields.io/badge/version-v0.22.8-31595b" alt="版本: v0.22.8">
   <img src="https://img.shields.io/badge/Obsidian-desktop%201.13%2B-7454aa" alt="Obsidian: 桌面版 ≥ 1.13">
   <img src="https://img.shields.io/badge/Node.js-22.13%2B-446844" alt="Node.js: ≥ 22.13">
 </p>
